@@ -51,14 +51,15 @@
       "embeddableEnhanced",
       "apmSourcesAccess",
       "fileUpload",
-      "metricsExperience"
+      "metricsExperience",
+      "workflowsManagement"
     ],
     "requiredBundles": [
       "kibanaUtils",
       "kibanaReact",
       "unifiedSearch",
       "savedObjects",
-      "controls",
+      "controls"
     ],
     "extraPublicDirs": [
       "common"

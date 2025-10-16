@@ -17,6 +17,7 @@ import type { FieldFormatsStart } from '@kbn/field-formats-plugin/public';
 import type { UnifiedSearchPublicPluginStart } from '@kbn/unified-search-plugin/public';
 import type { DataPublicPluginStart } from '@kbn/data-plugin/public';
 import type { SpacesPluginStart } from '@kbn/spaces-plugin/public';
+import type { createWorkflowFlyoutAction as CreateWorkflowFlyoutActionType } from './helpers/create_workflow_flyout_action';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface WorkflowsPublicPluginSetup {}
@@ -25,8 +26,12 @@ export interface WorkflowsPublicPluginSetupDependencies {
   triggersActionsUi: TriggersAndActionsUIPublicPluginSetup;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface WorkflowsPublicPluginStart {}
+export interface WorkflowsPublicPluginStart {
+  /**
+   * Helper function to create a workflow action for Discover flyout
+   */
+  createWorkflowFlyoutAction: typeof CreateWorkflowFlyoutActionType;
+}
 
 export interface WorkflowsPublicPluginStartDependencies {
   navigation: NavigationPublicPluginStart;

@@ -77,6 +77,8 @@ export function DiscoverGridFlyout({
     columns,
     filters,
     savedSearchId,
+    services,
+    document: actualHit,
   });
 
   const getDocViewerAccessor = useProfileAccessor('getDocViewer', {

@@ -8,16 +8,23 @@
  */
 
 import { i18n } from '@kbn/i18n';
+import { useMemo } from 'react';
+import type { DataTableRecord } from '@kbn/discover-utils/types';
 import type { FlyoutActionItem, FlyoutCustomization } from '../../customizations';
 import type { UseNavigationProps } from '../../hooks/use_navigation_props';
 import { useNavigationProps } from '../../hooks/use_navigation_props';
+import type { DiscoverServices } from '../../build_services';
 
 interface UseFlyoutActionsParams extends UseNavigationProps {
   actions?: FlyoutCustomization['actions'];
+  services?: DiscoverServices;
+  document?: DataTableRecord;
 }
 
 export const useFlyoutActions = ({
   actions,
+  services,
+  document,
   ...props
 }: UseFlyoutActionsParams): { flyoutActions: FlyoutActionItem[] } => {
   const { dataView } = props;
@@ -29,6 +36,27 @@ export const useFlyoutActions = ({
     viewSurroundingDocument = { disabled: false },
   } = actions?.defaultActions ?? {};
   const customActions = [...(actions?.getActionItems?.() ?? [])];
+
+  // Create workflow action if workflowsManagement plugin is available
+  const workflowAction = useMemo<FlyoutActionItem | null>(() => {
+    if (!services || !document || !services.workflowsManagement) {
+      return null;
+    }
+
+    // Access the helper function from the plugin start contract
+    const createWorkflowFlyoutAction = services.workflowsManagement.createWorkflowFlyoutAction;
+
+    if (typeof createWorkflowFlyoutAction === 'function') {
+      return createWorkflowFlyoutAction({
+        core: services.core,
+        document,
+        dataViewId: dataView.id,
+        dataViewTitle: dataView.title,
+      });
+    }
+
+    return null;
+  }, [services, document, dataView.id, dataView.title]);
 
   const flyoutActions: FlyoutActionItem[] = [
     {
@@ -57,6 +85,7 @@ export const useFlyoutActions = ({
           'Inspect documents that occurred before and after this document. Only pinned filters remain active in the Surrounding documents view.',
       }),
     },
+    ...(workflowAction ? [workflowAction] : []),
     ...customActions,
   ];
 
