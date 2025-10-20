@@ -28,6 +28,7 @@ import { WorkflowGraph } from '@kbn/workflows/graph';
 import { z } from '@kbn/zod';
 import { getCachedAllConnectors } from './connectors_cache';
 import { generateBuiltInStepSnippet } from './snippets/generate_builtin_step_snippet';
+import { generateFilterStepSnippet } from './snippets/generate_filter_step_snippet';
 import {
   connectorTypeRequiresConnectorId,
   generateConnectorSnippet,
@@ -117,6 +118,80 @@ function getBuiltInStepTypesFromSchema(): Array<{
     },
   ];
 
+  // Add filter step types
+  const filterStepTypes = [
+    {
+      type: 'filter.where_exp',
+      description: 'Filter array items based on an expression',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.concat',
+      description: 'Concatenate two arrays',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.format',
+      description: 'Format string using a template',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.limit',
+      description: 'Limit the number of items in an array',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.sort',
+      description: 'Sort array items by a property',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.map',
+      description: 'Extract a property from each array item',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.group_by',
+      description: 'Group array items by a property',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.first',
+      description: 'Get the first item from an array',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.last',
+      description: 'Get the last item from an array',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.size',
+      description: 'Get the size of an array',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.unique',
+      description: 'Remove duplicate items from an array',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.reverse',
+      description: 'Reverse the order of array items',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.join',
+      description: 'Join array items into a string',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+    {
+      type: 'filter.split',
+      description: 'Split a string into an array',
+      icon: monaco.languages.CompletionItemKind.Function,
+    },
+  ];
+
   const stepTypes = stepSchemas.map(({ schema, description, icon }) => {
     // Extract the literal type value from the Zod schema
     const typeField = schema.shape.type;
@@ -129,8 +204,11 @@ function getBuiltInStepTypesFromSchema(): Array<{
     };
   });
 
-  builtInStepTypesCache = stepTypes;
-  return stepTypes;
+  // Add filter step types to the result
+  const allStepTypes = [...stepTypes, ...filterStepTypes];
+
+  builtInStepTypesCache = allStepTypes;
+  return allStepTypes;
 }
 
 // Cache for built-in trigger types extracted from schema
@@ -705,7 +783,15 @@ function getConnectorTypeSuggestions(
     );
 
     matchingBuiltInTypes.forEach((stepType) => {
-      const snippetText = generateBuiltInStepSnippet(stepType.type as BuiltInStepType);
+      let snippetText: string;
+      
+      // Check if it's a filter step
+      if (stepType.type.startsWith('filter.')) {
+        snippetText = generateFilterStepSnippet(stepType.type);
+      } else {
+        snippetText = generateBuiltInStepSnippet(stepType.type as BuiltInStepType);
+      }
+      
       const extendedRange = {
         startLineNumber: range.startLineNumber,
         endLineNumber: range.endLineNumber,
@@ -722,7 +808,7 @@ function getConnectorTypeSuggestions(
         documentation: stepType.description,
         filterText: stepType.type,
         sortText: `!${stepType.type}`, // Priority prefix to sort before connector suggestions
-        detail: 'Built-in workflow step',
+        detail: stepType.type.startsWith('filter.') ? 'Filter workflow step' : 'Built-in workflow step',
         preselect: false,
       });
     });

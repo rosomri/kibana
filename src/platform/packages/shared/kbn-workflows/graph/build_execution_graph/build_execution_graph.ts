@@ -148,6 +148,11 @@ function visitAbstractStep(currentStep: BaseStep, context: GraphBuildContext): W
     return visitKibanaStep(currentStep as KibanaStep, context);
   }
 
+  // Handle filter steps
+  if ((currentStep as any).type?.startsWith('filter.')) {
+    return visitFilterStep(currentStep as any, context);
+  }
+
   return visitAtomicStep(currentStep, context);
 }
 
@@ -225,6 +230,26 @@ export function visitKibanaStep(
     },
   };
   graph.setNode(kibanaNode.id, kibanaNode);
+
+  return graph;
+}
+
+export function visitFilterStep(
+  currentStep: any,
+  context: GraphBuildContext
+): WorkflowGraphType {
+  const stepId = getStepId(currentStep, context);
+  const graph = createTypedGraph({ directed: true });
+  const filterNode: AtomicGraphNode = {
+    id: stepId,
+    type: 'atomic',
+    stepId,
+    stepType: currentStep.type,
+    configuration: {
+      ...currentStep,
+    },
+  };
+  graph.setNode(filterNode.id, filterNode);
 
   return graph;
 }

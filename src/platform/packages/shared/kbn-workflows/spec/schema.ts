@@ -347,6 +347,214 @@ export const MergeStepSchema = BaseStepSchema.extend({
 });
 export type MergeStep = z.infer<typeof MergeStepSchema>;
 
+/* --- Filter Steps --- */
+// Base filter step schema
+export const BaseFilterStepSchema = BaseStepSchema.extend({
+  type: z.string().refine((val) => val.startsWith('filter.'), {
+    message: 'Filter step type must start with "filter."',
+  }),
+  with: z.object({
+    path: z.string().min(1), // Required: data path to filter
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+
+// Where expression filter
+export const FilterWhereExpStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.where_exp'),
+  with: z.object({
+    path: z.string().min(1),
+    exp: z.string().min(1), // Required expression like "value > 50"
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterWhereExpStep = z.infer<typeof FilterWhereExpStepSchema>;
+
+// Concat filter
+export const FilterConcatStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.concat'),
+  with: z.object({
+    path: z.string().min(1),
+    other: z.any(), // Required: other array to concatenate with
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterConcatStep = z.infer<typeof FilterConcatStepSchema>;
+
+// Format filter
+export const FilterFormatStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.format'),
+  with: z.object({
+    path: z.string().min(1),
+    template: z.string().min(1), // Required: format template like "Hello {{ value }}!"
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterFormatStep = z.infer<typeof FilterFormatStepSchema>;
+
+// Limit filter
+export const FilterLimitStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.limit'),
+  with: z.object({
+    path: z.string().min(1),
+    limit: z.number().int().min(1), // Required: number of items to limit to
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterLimitStep = z.infer<typeof FilterLimitStepSchema>;
+
+// Sort filter
+export const FilterSortStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.sort'),
+  with: z.object({
+    path: z.string().min(1),
+    property: z.string().min(1), // Required: property to sort by
+    order: z.enum(['asc', 'desc']).optional().default('asc'), // Optional: sort order
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterSortStep = z.infer<typeof FilterSortStepSchema>;
+
+// Map filter
+export const FilterMapStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.map'),
+  with: z.object({
+    path: z.string().min(1),
+    property: z.string().min(1), // Required: property to map to
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterMapStep = z.infer<typeof FilterMapStepSchema>;
+
+// Group by filter
+export const FilterGroupByStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.group_by'),
+  with: z.object({
+    path: z.string().min(1),
+    property: z.string().min(1), // Required: property to group by
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterGroupByStep = z.infer<typeof FilterGroupByStepSchema>;
+
+// First filter
+export const FilterFirstStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.first'),
+  with: z.object({
+    path: z.string().min(1),
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterFirstStep = z.infer<typeof FilterFirstStepSchema>;
+
+// Last filter
+export const FilterLastStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.last'),
+  with: z.object({
+    path: z.string().min(1),
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterLastStep = z.infer<typeof FilterLastStepSchema>;
+
+// Size filter
+export const FilterSizeStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.size'),
+  with: z.object({
+    path: z.string().min(1),
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterSizeStep = z.infer<typeof FilterSizeStepSchema>;
+
+// Unique filter
+export const FilterUniqueStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.unique'),
+  with: z.object({
+    path: z.string().min(1),
+    property: z.string().optional(), // Optional: property to check uniqueness by
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterUniqueStep = z.infer<typeof FilterUniqueStepSchema>;
+
+// Reverse filter
+export const FilterReverseStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.reverse'),
+  with: z.object({
+    path: z.string().min(1),
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterReverseStep = z.infer<typeof FilterReverseStepSchema>;
+
+// Join filter
+export const FilterJoinStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.join'),
+  with: z.object({
+    path: z.string().min(1),
+    separator: z.string().optional().default(','), // Optional: separator to join with
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterJoinStep = z.infer<typeof FilterJoinStepSchema>;
+
+// Split filter
+export const FilterSplitStepSchema = BaseStepSchema.extend({
+  type: z.literal('filter.split'),
+  with: z.object({
+    path: z.string().min(1),
+    separator: z.string().optional().default(','), // Optional: separator to split by
+  }),
+})
+  .merge(StepWithIfConditionSchema)
+  .merge(StepWithForEachSchema)
+  .merge(TimeoutPropSchema)
+  .merge(StepWithOnFailureSchema);
+export type FilterSplitStep = z.infer<typeof FilterSplitStepSchema>;
+
 export const getMergeStepSchema = (stepSchema: z.ZodType, loose: boolean = false) => {
   const schema = MergeStepSchema.extend({
     steps: z.array(stepSchema), // steps to run after merge
@@ -422,6 +630,21 @@ const StepSchema = z.lazy(() =>
     ParallelStepSchema,
     MergeStepSchema,
     BaseConnectorStepSchema,
+    // Filter steps
+    FilterWhereExpStepSchema,
+    FilterConcatStepSchema,
+    FilterFormatStepSchema,
+    FilterLimitStepSchema,
+    FilterSortStepSchema,
+    FilterMapStepSchema,
+    FilterGroupByStepSchema,
+    FilterFirstStepSchema,
+    FilterLastStepSchema,
+    FilterSizeStepSchema,
+    FilterUniqueStepSchema,
+    FilterReverseStepSchema,
+    FilterJoinStepSchema,
+    FilterSplitStepSchema,
   ])
 );
 export type Step = z.infer<typeof StepSchema>;
@@ -433,6 +656,21 @@ export const BuiltInStepTypes = [
   MergeStepSchema.shape.type._def.value,
   WaitStepSchema.shape.type._def.value,
   HttpStepSchema.shape.type._def.value,
+  // Filter step types
+  FilterWhereExpStepSchema.shape.type._def.value,
+  FilterConcatStepSchema.shape.type._def.value,
+  FilterFormatStepSchema.shape.type._def.value,
+  FilterLimitStepSchema.shape.type._def.value,
+  FilterSortStepSchema.shape.type._def.value,
+  FilterMapStepSchema.shape.type._def.value,
+  FilterGroupByStepSchema.shape.type._def.value,
+  FilterFirstStepSchema.shape.type._def.value,
+  FilterLastStepSchema.shape.type._def.value,
+  FilterSizeStepSchema.shape.type._def.value,
+  FilterUniqueStepSchema.shape.type._def.value,
+  FilterReverseStepSchema.shape.type._def.value,
+  FilterJoinStepSchema.shape.type._def.value,
+  FilterSplitStepSchema.shape.type._def.value,
 ];
 export type BuiltInStepType = (typeof BuiltInStepTypes)[number];
 

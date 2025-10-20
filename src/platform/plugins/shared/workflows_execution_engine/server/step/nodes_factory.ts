@@ -40,6 +40,7 @@ import type { WorkflowTaskManager } from '../workflow_task_manager/workflow_task
 import { AtomicStepImpl } from './atomic_step/atomic_step_impl';
 import { EnterForeachNodeImpl, ExitForeachNodeImpl } from './foreach_step';
 import { HttpStepImpl } from './http_step';
+import { FilterStepImpl } from './filter_step';
 import {
   EnterConditionBranchNodeImpl,
   EnterIfNodeImpl,
@@ -82,6 +83,21 @@ export class NodesFactory {
   public create(stepExecutionRuntime: StepExecutionRuntime): NodeImplementation {
     const node = stepExecutionRuntime.node;
     const stepLogger = stepExecutionRuntime.stepLogger;
+
+    // Handle filter steps
+    if (node.stepType && node.stepType.startsWith('filter.')) {
+      this.workflowLogger.logInfo(`Creating filter step: ${node.stepType}`, {
+        event: { action: 'filter-step-creation', outcome: 'success' },
+        tags: ['step-factory', 'filter'],
+      });
+      return new FilterStepImpl(
+        (node as any).configuration as any,
+        stepExecutionRuntime,
+        undefined,
+        this.workflowRuntime,
+        stepLogger
+      );
+    }
 
     // Handle elasticsearch.* and kibana.* actions
     if (node.stepType && node.stepType.startsWith('elasticsearch.')) {

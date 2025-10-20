@@ -689,8 +689,10 @@ export function formatValidationError(
           formattedMessage = `Unknown Elasticsearch API: "${receivedValue}". Use autocomplete to see valid elasticsearch.* APIs.`;
         } else if (receivedValue?.startsWith?.('kibana.')) {
           formattedMessage = `Unknown Kibana API: "${receivedValue}". Use autocomplete to see valid kibana.* APIs.`;
+        } else if (receivedValue?.startsWith?.('filter.')) {
+          formattedMessage = `Unknown filter type: "${receivedValue}". Use autocomplete to see valid filter.* types.`;
         } else {
-          formattedMessage = `Unknown connector type: "${receivedValue}". Available: elasticsearch.*, kibana.*, slack, http, console, wait, inference.*`;
+          formattedMessage = `Unknown connector type: "${receivedValue}". Available: elasticsearch.*, kibana.*, slack, http, console, wait, inference.*, filter.*`;
         }
       }
       // Handle union errors with too many options
