@@ -22,17 +22,17 @@ export interface CreateWorkflowFlyoutActionParams {
    * Kibana core services
    */
   core: CoreStart;
-  
+
   /**
    * The document to execute workflows against
    */
   document: DataTableRecord;
-  
+
   /**
    * Optional data view ID for additional context
    */
   dataViewId?: string;
-  
+
   /**
    * Optional data view title for additional context
    */
@@ -41,10 +41,10 @@ export interface CreateWorkflowFlyoutActionParams {
 
 /**
  * Creates a flyout action for running workflows on documents in Discover
- * 
+ *
  * This function checks user permissions and returns a properly configured
  * FlyoutActionItem that can be added to Discover's flyout actions.
- * 
+ *
  * Permission Check:
  * The action is only enabled if the user has the 'workflowsManagement.execute'
  * capability, which corresponds to the workflow:execute privilege.
@@ -56,12 +56,10 @@ export function createWorkflowFlyoutAction({
   dataViewTitle,
 }: CreateWorkflowFlyoutActionParams): FlyoutActionItem {
   const { overlays, http, notifications, application } = core;
-  
+
   // PERMISSION CHECK: Verify user has workflow:execute capability
   // This maps to the 'execute' UI capability defined in server/features.ts
-  const hasExecutePermission = Boolean(
-    application.capabilities.workflowsManagement?.execute
-  );
+  const hasExecutePermission = Boolean(application.capabilities.workflowsManagement?.execute);
 
   return {
     id: 'runWorkflow',
@@ -86,7 +84,8 @@ export function createWorkflowFlyoutAction({
             defaultMessage: 'Permission denied',
           }),
           text: i18n.translate('workflowsManagement.discover.runWorkflow.permissionDeniedMessage', {
-            defaultMessage: 'You do not have permission to execute workflows. Please contact your administrator.',
+            defaultMessage:
+              'You do not have permission to execute workflows. Please contact your administrator.',
           }),
         });
         return;
@@ -100,7 +99,7 @@ export function createWorkflowFlyoutAction({
               onClose={() => modal.close()}
               onSelect={async (workflowId, workflowName) => {
                 modal.close();
-                
+
                 try {
                   await executeWorkflowFromDocument({
                     document,
@@ -126,4 +125,3 @@ export function createWorkflowFlyoutAction({
     },
   };
 }
-

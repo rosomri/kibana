@@ -26,7 +26,9 @@ export type {
 
 // Export components
 export { WorkflowSelectorModal } from './components/workflow_selector_modal';
+export { WorkflowSelectorCore } from './components/workflow_selector_core';
 export type { WorkflowSelectorModalProps } from './components/workflow_selector_modal';
+export type { WorkflowSelectorCoreProps } from './components/workflow_selector_core';
 
 // Export helpers
 export { executeWorkflowFromDocument } from './helpers/execute_workflow_from_document';

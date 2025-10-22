@@ -16,27 +16,27 @@ export interface ExecuteWorkflowFromDocumentOptions {
    * The document to pass to the workflow
    */
   document: DataTableRecord;
-  
+
   /**
    * The workflow ID to execute
    */
   workflowId: string;
-  
+
   /**
    * The workflow name (for user feedback)
    */
   workflowName: string;
-  
+
   /**
    * Optional additional metadata
    */
   metadata?: Record<string, any>;
-  
+
   /**
    * Kibana HTTP service
    */
   http: HttpStart;
-  
+
   /**
    * Kibana notifications service
    */
@@ -52,7 +52,7 @@ export interface ExecuteWorkflowResult {
 
 /**
  * Execute a workflow using a document from Discover as input
- * 
+ *
  * Calls POST /api/workflows/{id}/run and structures the document
  * data properly for workflow consumption.
  */
@@ -116,4 +116,3 @@ export async function executeWorkflowFromDocument(
     throw error;
   }
 }
-
