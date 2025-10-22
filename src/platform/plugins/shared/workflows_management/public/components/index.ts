@@ -8,3 +8,4 @@
  */
 
 export { WorkflowsEmptyState } from './workflows_empty_state';
+export { WorkflowSelectorCore } from './workflow_selector_core';
