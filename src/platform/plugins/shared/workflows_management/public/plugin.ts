@@ -26,6 +26,7 @@ import type {
   WorkflowsServices,
 } from './types';
 import { PLUGIN_ID, PLUGIN_NAME } from '../common';
+// Lazy import to avoid bundling connector dependencies in main plugin
 
 export class WorkflowsPlugin
   implements
@@ -84,9 +85,7 @@ export class WorkflowsPlugin
   }
 
   public start(core: CoreStart): WorkflowsPublicPluginStart {
-    return {
-      createWorkflowFlyoutAction,
-    };
+    return {};
   }
 
   public stop() {}
