@@ -10,7 +10,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useKibana } from '@kbn/kibana-react-plugin/public';
 import type { WorkflowListDto } from '@kbn/workflows';
-import type { UseWorkflowSelectorProps, UseWorkflowSelectorReturn, WorkflowOption } from '../types/workflow_selector';
+import type {
+  UseWorkflowSelectorProps,
+  UseWorkflowSelectorReturn,
+  WorkflowOption,
+} from '../types/workflow_selector';
 
 export function useWorkflowSelector({
   selectedWorkflowId,
@@ -66,13 +70,14 @@ export function useWorkflowSelector({
       });
 
       // Sort workflows by trigger type if prioritizeByTrigger is true
-      const sortedWorkflowOptionsWithInfo = prioritizeByTrigger && triggerType
-        ? workflowOptionsWithSortInfo.sort((a, b) => {
-            if (a.hasTriggerType && !b.hasTriggerType) return -1;
-            if (!a.hasTriggerType && b.hasTriggerType) return 1;
-            return 0;
-          })
-        : workflowOptionsWithSortInfo;
+      const sortedWorkflowOptionsWithInfo =
+        prioritizeByTrigger && triggerType
+          ? workflowOptionsWithSortInfo.sort((a, b) => {
+              if (a.hasTriggerType && !b.hasTriggerType) return -1;
+              if (!a.hasTriggerType && b.hasTriggerType) return 1;
+              return 0;
+            })
+          : workflowOptionsWithSortInfo;
 
       // Extract just the workflow options for the component
       const workflowOptions = sortedWorkflowOptionsWithInfo.map((item) => item.workflowOption);
@@ -90,20 +95,24 @@ export function useWorkflowSelector({
     // This function is here for API consistency
   }, []);
 
-  const searchWorkflows = useCallback((query: string) => {
-    // For now, we'll implement client-side filtering
-    // In the future, this could be enhanced to use server-side search
-    if (!query.trim()) {
-      fetchWorkflows();
-      return;
-    }
+  const searchWorkflows = useCallback(
+    (query: string) => {
+      // For now, we'll implement client-side filtering
+      // In the future, this could be enhanced to use server-side search
+      if (!query.trim()) {
+        fetchWorkflows();
+        return;
+      }
 
-    const filteredWorkflows = workflows.filter((workflow) =>
-      workflow.name.toLowerCase().includes(query.toLowerCase()) ||
-      workflow.description?.toLowerCase().includes(query.toLowerCase())
-    );
-    setWorkflows(filteredWorkflows);
-  }, [workflows, fetchWorkflows]);
+      const filteredWorkflows = workflows.filter(
+        (workflow) =>
+          workflow.name.toLowerCase().includes(query.toLowerCase()) ||
+          workflow.description?.toLowerCase().includes(query.toLowerCase())
+      );
+      setWorkflows(filteredWorkflows);
+    },
+    [workflows, fetchWorkflows]
+  );
 
   const selectedWorkflow = workflows.find((w) => w.id === selectedWorkflowId) || null;
 
