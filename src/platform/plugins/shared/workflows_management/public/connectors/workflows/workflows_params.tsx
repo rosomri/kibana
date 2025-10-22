@@ -17,9 +17,8 @@
  */
 
 import { EuiFormRow, EuiIcon, EuiLink } from '@elastic/eui';
-
-import type { ActionParamsProps } from '@kbn/triggers-actions-ui-plugin/public';
 import React, { useCallback, useEffect } from 'react';
+import type { ActionParamsProps } from '@kbn/triggers-actions-ui-plugin/public';
 import * as i18n from './translations';
 import type { WorkflowsActionParams } from './types';
 import { WorkflowSelectorCore } from '../../components/workflow_selector_core';
