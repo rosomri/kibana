@@ -39,6 +39,7 @@ import { registerFeature } from './plugin_imports/register_feature';
 import type { UrlTracker } from './build_services';
 import { initializeKbnUrlTracking } from './utils/initialize_kbn_url_tracking';
 import { defaultCustomizationContext } from './customizations/defaults';
+import type { CustomizationCallback } from './customizations';
 import {
   SEARCH_EMBEDDABLE_CELL_ACTIONS_TRIGGER,
   ACTION_VIEW_SAVED_SEARCH,
@@ -276,9 +277,28 @@ export class DiscoverPlugin
 
     return {
       locator: this.locator,
-      DiscoverContainer: (props: DiscoverContainerProps) => (
-        <DiscoverContainerInternal getDiscoverServices={getDiscoverServicesInternal} {...props} />
-      ),
+      DiscoverContainer: (props: DiscoverContainerProps) => {
+        // Create an async callback that lazy-loads the workflow customization
+        const workflowCallback: CustomizationCallback = async ({
+          customizations,
+          stateContainer,
+        }) => {
+          const { createWorkflowCustomizationCallback } = await import(
+            './components/run_workflow/create_workflow_customization'
+          );
+          const callback = createWorkflowCustomizationCallback(core);
+          return callback({ customizations, stateContainer });
+        };
+
+        const mergedCallbacks = [...(props.customizationCallbacks ?? []), workflowCallback];
+        return (
+          <DiscoverContainerInternal
+            getDiscoverServices={getDiscoverServicesInternal}
+            {...props}
+            customizationCallbacks={mergedCallbacks}
+          />
+        );
+      },
     };
   }
 
