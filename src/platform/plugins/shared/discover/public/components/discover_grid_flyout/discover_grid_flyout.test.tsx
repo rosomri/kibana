@@ -283,7 +283,7 @@ describe('Discover flyout', function () {
       it('should display actions added by getActionItems', async () => {
         mockBreakpointSize = 'xl';
         mockFlyoutCustomization.actions = {
-          getActionItems: jest.fn(() => [
+          getActionItems: jest.fn((doc) => [
             {
               id: 'action-item-1',
               enabled: true,
@@ -324,7 +324,7 @@ describe('Discover flyout', function () {
 
       it('should display multiple actions added by getActionItems', async () => {
         mockFlyoutCustomization.actions = {
-          getActionItems: jest.fn(() =>
+          getActionItems: jest.fn((doc) =>
             Array.from({ length: 5 }, (_, i) => ({
               id: `action-item-${i}`,
               enabled: true,
@@ -366,7 +366,7 @@ describe('Discover flyout', function () {
         mockBreakpointSize = 's';
 
         mockFlyoutCustomization.actions = {
-          getActionItems: jest.fn(() =>
+          getActionItems: jest.fn((doc) =>
             Array.from({ length: 3 }, (_, i) => ({
               id: `action-item-${i}`,
               enabled: true,

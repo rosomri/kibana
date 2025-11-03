@@ -8,16 +8,19 @@
  */
 
 import { i18n } from '@kbn/i18n';
+import type { DataTableRecord } from '@kbn/discover-utils/types';
 import type { FlyoutActionItem, FlyoutCustomization } from '../../customizations';
 import type { UseNavigationProps } from '../../hooks/use_navigation_props';
 import { useNavigationProps } from '../../hooks/use_navigation_props';
 
 interface UseFlyoutActionsParams extends UseNavigationProps {
   actions?: FlyoutCustomization['actions'];
+  hit: DataTableRecord;
 }
 
 export const useFlyoutActions = ({
   actions,
+  hit,
   ...props
 }: UseFlyoutActionsParams): { flyoutActions: FlyoutActionItem[] } => {
   const { dataView } = props;
@@ -28,7 +31,7 @@ export const useFlyoutActions = ({
     viewSingleDocument = { disabled: false },
     viewSurroundingDocument = { disabled: false },
   } = actions?.defaultActions ?? {};
-  const customActions = [...(actions?.getActionItems?.() ?? [])];
+  const customActions = [...(actions?.getActionItems?.(hit) ?? [])];
 
   const flyoutActions: FlyoutActionItem[] = [
     {

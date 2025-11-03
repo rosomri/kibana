@@ -46,7 +46,7 @@ export interface FlyoutCustomization {
   title?: string;
   actions: {
     defaultActions?: FlyoutDefaultActions;
-    getActionItems?: () => FlyoutActionItem[];
+    getActionItems?: (doc: DataTableRecord) => FlyoutActionItem[];
   };
   Content?: ComponentType<FlyoutContentProps>;
   docViewsRegistry?: DocViewRenderProps['docViewsRegistry'];
