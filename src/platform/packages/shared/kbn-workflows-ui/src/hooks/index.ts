@@ -10,3 +10,4 @@
 export * from './use_workflow_execution';
 export * from './use_workflows';
 export * from './use_workflow_execution_polling';
+export * from './use_run_workflow';
