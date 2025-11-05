@@ -10,16 +10,41 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, complexity */
 
 import type YAML from 'yaml';
+import { isScalar } from 'yaml';
 import type { monaco } from '@kbn/monaco';
 import type { z } from '@kbn/zod';
-import { formatValidationError, getCurrentPath } from '../../../../common/lib/yaml_utils';
+import {
+  formatValidationError,
+  getCurrentPath,
+  getScalarValueAtPosition,
+  isDynamicValue,
+} from '../../../../common/lib/yaml_utils';
 
 export function formatMonacoYamlMarker(
   marker: monaco.editor.IMarker | monaco.editor.IMarkerData,
   editorModel: monaco.editor.ITextModel,
   workflowYamlSchemaLoose: z.ZodSchema,
   yamlDocument: YAML.Document | null
-) {
+): monaco.editor.IMarker | monaco.editor.IMarkerData | null {
+  // Check if this marker is for a dynamic value - if so, suppress the validation error
+  if (yamlDocument) {
+    try {
+      const markerPosition = editorModel.getOffsetAt({
+        lineNumber: marker.startLineNumber,
+        column: marker.startColumn,
+      });
+
+      const scalarNode = getScalarValueAtPosition(yamlDocument, markerPosition);
+      if (scalarNode && isScalar(scalarNode) && isDynamicValue(scalarNode.value)) {
+        // Return null to suppress this marker - it will be filtered out in transformMonacoMarkers
+        return null;
+      }
+    } catch (error) {
+      // If we can't determine the value, continue with normal processing
+      // Fall through to existing logic
+    }
+  }
+
   // Check if this is a validation error that could benefit from dynamic formatting
   const hasNumericEnumPattern =
     // Patterns with quotes: Expected "0 | 1 | 2"
