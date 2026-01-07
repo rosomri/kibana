@@ -306,6 +306,7 @@ export class WorkflowsExecutionEnginePlugin
                 workflow,
                 spaceId,
                 workflowExecutionRepository,
+                taskInstance,
                 logger
               );
               if (wasSkipped) {
@@ -346,6 +347,10 @@ export class WorkflowsExecutionEnginePlugin
                 createdAt: workflowCreatedAt.toISOString(),
                 createdBy: '',
                 triggeredBy: 'scheduled',
+                // Store task's runAt to link execution to specific scheduled run
+                // runAt is stable across retries (retries use the same runAt but get a new startedAt)
+                // This allows us to detect stale executions from previous scheduled runs
+                taskRunAt: taskInstance.runAt ? new Date(taskInstance.runAt).toISOString() : null,
                 // Store queue delay metrics for observability
                 queueMetrics: {
                   scheduledAt: taskInstance.scheduledAt?.toString(),
