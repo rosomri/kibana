@@ -13,7 +13,7 @@ import { elasticsearchServiceMock, loggingSystemMock } from '@kbn/core/server/mo
 import type { ConcreteTaskInstance } from '@kbn/task-manager-plugin/server';
 import { TaskStatus } from '@kbn/task-manager-plugin/server';
 import type { WorkflowExecutionEngineModel } from '@kbn/workflows';
-import { ExecutionStatus } from '@kbn/workflows';
+import { ExecutionStatus, TerminalExecutionStatuses } from '@kbn/workflows';
 import { checkAndSkipIfExistingScheduledExecution } from './execution_functions';
 import { WorkflowExecutionRepository } from './repositories/workflow_execution_repository';
 import { WORKFLOWS_EXECUTIONS_INDEX } from '../common';
@@ -114,13 +114,7 @@ describe('checkAndSkipIfExistingScheduledExecution', () => {
             must_not: [
               {
                 terms: {
-                  status: [
-                    ExecutionStatus.COMPLETED,
-                    ExecutionStatus.FAILED,
-                    ExecutionStatus.CANCELLED,
-                    ExecutionStatus.SKIPPED,
-                    ExecutionStatus.TIMED_OUT,
-                  ],
+                  status: TerminalExecutionStatuses,
                 },
               },
             ],
@@ -240,15 +234,7 @@ describe('checkAndSkipIfExistingScheduledExecution', () => {
     });
 
     it('should not skip when only terminal status executions exist', async () => {
-      const terminalStatuses = [
-        ExecutionStatus.COMPLETED,
-        ExecutionStatus.FAILED,
-        ExecutionStatus.CANCELLED,
-        ExecutionStatus.SKIPPED,
-        ExecutionStatus.TIMED_OUT,
-      ];
-
-      for (const _status of terminalStatuses) {
+      for (const _status of TerminalExecutionStatuses) {
         esClient.search.mockResolvedValue({
           hits: {
             hits: [],
