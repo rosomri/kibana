@@ -78,7 +78,7 @@ export class EnterWhileNodeImpl implements NodeImplementation {
 
     const conditionResult = this.evaluateCondition(state);
 
-    if (!conditionResult) {
+    if (conditionResult) {
       this.workflowLogger.logDebug(
         `While step "${this.node.stepId}" condition evaluated to false after ${completedIterations} iteration(s). Terminating loop.`,
         { workflow: { step_id: this.node.stepId } }

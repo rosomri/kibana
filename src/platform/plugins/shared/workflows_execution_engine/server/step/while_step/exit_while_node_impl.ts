@@ -29,12 +29,24 @@ export class ExitWhileNodeImpl implements NodeImplementation {
     }
 
     if (whileState.terminated_by) {
-      this.stepExecutionRuntime.finishStep({
-        iterations: whileState.iterations,
-        iteration: whileState.iteration,
-        terminated_by: whileState.terminated_by,
-        conditionResult: whileState.terminated_by === 'condition' ? false : true,
-      });
+      if (whileState.terminated_by === 'condition') {
+        this.stepExecutionRuntime.finishStep({
+          iterations: whileState.iterations,
+          iteration: whileState.iteration,
+          terminated_by: whileState.terminated_by,
+          conditionResult: true,
+        });
+      } else {
+        this.stepExecutionRuntime.failStep(
+          new Error(`While step terminated by ${whileState.terminated_by}.`),
+          {
+            iterations: whileState.iterations,
+            iteration: whileState.iteration,
+            terminated_by: whileState.terminated_by,
+            conditionResult: false,
+          }
+        );
+      }
       this.workflowLogger.logDebug(
         `Exiting while step ${this.node.stepId} after ${whileState.iterations} iteration(s). Terminated by: ${whileState.terminated_by}.`,
         { workflow: { step_id: this.node.stepId } }

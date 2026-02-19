@@ -166,7 +166,7 @@ export class StepExecutionRuntime {
     this.logStepComplete(stepExecutionUpdate);
   }
 
-  public failStep(error: Error): void {
+  public failStep(error: Error, output?: Record<string, unknown>): void {
     // if there is a last step execution, fail it
     // if not, create a new step execution with fail
     const executionError = ExecutionError.fromError(error);
@@ -177,7 +177,7 @@ export class StepExecutionRuntime {
       status: ExecutionStatus.FAILED,
       scopeStack: this.stackFrames,
       finishedAt: new Date().toISOString(),
-      output: null,
+      output: output || null,
       error: serializedError,
     } as Partial<EsWorkflowStepExecution>;
 
