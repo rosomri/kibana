@@ -22,6 +22,7 @@ import type {
   StepWithOnFailure,
   TimeoutProp,
   WaitStep,
+  WhileStep,
   WorkflowOnFailure,
   WorkflowRetry,
   WorkflowSettings,
@@ -40,6 +41,7 @@ import type {
   EnterRetryNode,
   EnterTimeoutZoneNode,
   EnterTryBlockNode,
+  EnterWhileNode,
   ExitConditionBranchNode,
   ExitContinueNode,
   ExitFallbackPathNode,
@@ -49,6 +51,7 @@ import type {
   ExitRetryNode,
   ExitTimeoutZoneNode,
   ExitTryBlockNode,
+  ExitWhileNode,
   GraphNodeUnion,
   HttpGraphNode,
   KibanaGraphNode,
@@ -57,7 +60,7 @@ import type {
 } from '../types';
 import { createTypedGraph } from '../workflow_graph/create_typed_graph';
 
-const flowControlStepTypes = new Set(['if', 'foreach']);
+const flowControlStepTypes = new Set(['if', 'foreach', 'while']);
 const disallowedWorkflowLevelOnFailureSteps = new Set(['wait']);
 
 /** Context used during the graph construction to keep track of settings and avoid cycles */
@@ -117,6 +120,10 @@ function visitAbstractStep(currentStep: BaseStep, context: GraphBuildContext): W
 
   if ((currentStep as ForEachStep).type === 'foreach') {
     return createForeachGraph(getStepId(currentStep, context), currentStep as ForEachStep, context);
+  }
+
+  if ((currentStep as WhileStep).type === 'while') {
+    return createWhileGraph(getStepId(currentStep, context), currentStep as WhileStep, context);
   }
 
   if ((currentStep as StepWithForeach).foreach) {
@@ -771,6 +778,41 @@ function createForeachGraph(
   const innerGraph = createStepsSequence(foreachStep.steps || [], context);
 
   insertGraphBetweenNodes(graph, innerGraph, enterForeachNodeId, exitNodeId);
+  context.stack.pop();
+  return graph;
+}
+
+function createWhileGraph(
+  stepId: string,
+  whileStep: WhileStep,
+  context: GraphBuildContext
+): WorkflowGraphType {
+  const graph = createTypedGraph({ directed: true });
+  const enterWhileNodeId = `enterWhile_${stepId}`;
+  const exitNodeId = `exitWhile_${stepId}`;
+  const enterWhileNode: EnterWhileNode = {
+    id: enterWhileNodeId,
+    type: 'enter-while',
+    stepId,
+    stepType: whileStep.type,
+    exitNodeId,
+    configuration: {
+      ...omit(whileStep, ['steps']),
+    },
+  };
+  context.stack.push(enterWhileNode);
+  graph.setNode(enterWhileNodeId, enterWhileNode);
+  const exitWhileNode: ExitWhileNode = {
+    type: 'exit-while',
+    id: exitNodeId,
+    stepType: whileStep.type,
+    stepId,
+    startNodeId: enterWhileNodeId,
+  };
+  graph.setNode(exitNodeId, exitWhileNode);
+  const innerGraph = createStepsSequence(whileStep.steps || [], context);
+
+  insertGraphBetweenNodes(graph, innerGraph, enterWhileNodeId, exitNodeId);
   context.stack.pop();
   return graph;
 }

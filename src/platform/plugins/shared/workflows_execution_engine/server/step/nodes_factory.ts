@@ -15,11 +15,13 @@ import type {
   EnterIfNode,
   EnterRetryNode,
   EnterTryBlockNode,
+  EnterWhileNode,
   ExitConditionBranchNode,
   ExitFallbackPathNode,
   ExitForeachNode,
   ExitNormalPathNode,
   ExitRetryNode,
+  ExitWhileNode,
   HttpGraphNode,
   WorkflowGraph,
 } from '@kbn/workflows/graph';
@@ -35,6 +37,7 @@ import { CustomStepImpl } from './custom_step_impl';
 import { DataSetStepImpl } from './data_set_step';
 import { ElasticsearchActionStepImpl } from './elasticsearch_action_step';
 import { EnterForeachNodeImpl, ExitForeachNodeImpl } from './foreach_step';
+import { EnterWhileNodeImpl, ExitWhileNodeImpl } from './while_step';
 import { HttpStepImpl } from './http_step';
 import {
   EnterConditionBranchNodeImpl,
@@ -169,6 +172,20 @@ export class NodesFactory {
       case 'exit-foreach':
         return new ExitForeachNodeImpl(
           node as ExitForeachNode,
+          stepExecutionRuntime,
+          this.workflowRuntime,
+          stepLogger
+        );
+      case 'enter-while':
+        return new EnterWhileNodeImpl(
+          node as EnterWhileNode,
+          this.workflowRuntime,
+          stepExecutionRuntime,
+          stepLogger
+        );
+      case 'exit-while':
+        return new ExitWhileNodeImpl(
+          node as ExitWhileNode,
           stepExecutionRuntime,
           this.workflowRuntime,
           stepLogger

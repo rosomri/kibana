@@ -9,7 +9,7 @@
 
 import { z } from '@kbn/zod/v4';
 import { GraphNodeSchema } from './base';
-import { ForEachStepSchema } from '../../../spec/schema';
+import { ForEachStepSchema, WhileStepSchema } from '../../../spec/schema';
 
 export const EnterForeachNodeConfigurationSchema = ForEachStepSchema.omit({
   steps: true,
@@ -32,3 +32,25 @@ export const ExitForeachNodeSchema = GraphNodeSchema.extend({
 });
 
 export type ExitForeachNode = z.infer<typeof ExitForeachNodeSchema>;
+
+export const EnterWhileNodeConfigurationSchema = WhileStepSchema.omit({
+  steps: true,
+});
+export type EnterWhileNodeConfiguration = z.infer<typeof EnterWhileNodeConfigurationSchema>;
+
+export const EnterWhileNodeSchema = GraphNodeSchema.extend({
+  id: z.string(),
+  type: z.literal('enter-while'),
+  exitNodeId: z.string(),
+  configuration: EnterWhileNodeConfigurationSchema,
+});
+
+export type EnterWhileNode = z.infer<typeof EnterWhileNodeSchema>;
+
+export const ExitWhileNodeSchema = GraphNodeSchema.extend({
+  id: z.string(),
+  type: z.literal('exit-while'),
+  startNodeId: z.string(),
+});
+
+export type ExitWhileNode = z.infer<typeof ExitWhileNodeSchema>;

@@ -17,6 +17,7 @@ import {
   MergeStepSchema,
   ParallelStepSchema,
   WaitStepSchema,
+  WhileStepSchema,
 } from '@kbn/workflows';
 import { getCachedAllConnectors } from '../../../connectors_cache';
 import { generateBuiltInStepSnippet } from '../../../snippets/generate_builtin_step_snippet';
@@ -207,6 +208,11 @@ function getBuiltInStepTypesFromSchema(): Array<{
     {
       schema: ForEachStepSchema,
       description: 'Execute steps for each item in a collection',
+      icon: monaco.languages.CompletionItemKind.Method,
+    },
+    {
+      schema: WhileStepSchema,
+      description: 'Repeat steps while a condition is true',
       icon: monaco.languages.CompletionItemKind.Method,
     },
     {

@@ -198,6 +198,8 @@ export const BuiltInStepProperties = [
   'foreach',
   'timeout',
   'on-failure',
+  'condition',
+  'max-iterations',
 ];
 export type BuiltInStepProperty = (typeof BuiltInStepProperties)[number];
 
@@ -359,6 +361,27 @@ export const ForEachStepSchema = BaseStepSchema.extend({
 }).merge(StepWithIfConditionSchema);
 export type ForEachStep = z.infer<typeof ForEachStepSchema>;
 
+export const WhileStepSchema = BaseStepSchema.extend({
+  type: z.literal('while'),
+  condition: z.string(),
+  steps: z.array(BaseStepSchema).min(1),
+  'max-iterations': z.number().int().min(1).optional(),
+});
+export type WhileStep = z.infer<typeof WhileStepSchema>;
+
+export const getWhileStepSchema = (stepSchema: z.ZodType, loose: boolean = false) => {
+  const schema = WhileStepSchema.extend({
+    steps: z.array(stepSchema).min(1),
+    'on-failure': getOnFailureStepSchema(stepSchema, loose).optional(),
+  });
+
+  if (loose) {
+    return schema.partial().required({ type: true });
+  }
+
+  return schema;
+};
+
 export const getForEachStepSchema = (stepSchema: z.ZodType, loose: boolean = false) => {
   const schema = ForEachStepSchema.extend({
     steps: z.array(stepSchema).min(1),
@@ -502,6 +525,7 @@ export const WorkflowConstsSchema = z.record(
 const StepSchema = z.lazy(() =>
   z.union([
     ForEachStepSchema,
+    WhileStepSchema,
     IfStepSchema,
     WaitStepSchema,
     DataSetStepSchema,
@@ -517,6 +541,7 @@ export type Step = z.infer<typeof StepSchema>;
 
 export const BuiltInStepTypes = [
   ForEachStepSchema.shape.type.value,
+  WhileStepSchema.shape.type.value,
   IfStepSchema.shape.type.value,
   ParallelStepSchema.shape.type.value,
   MergeStepSchema.shape.type.value,
@@ -747,9 +772,17 @@ export const ForEachContextSchema = z.object({
 });
 export type ForEachContext = z.infer<typeof ForEachContextSchema>;
 
+export const WhileContextSchema = z
+  .object({
+    iteration: z.number().int(),
+  })
+  .and(z.record(z.string(), z.unknown()));
+export type WhileContext = z.infer<typeof WhileContextSchema>;
+
 export const StepContextSchema = WorkflowContextSchema.extend({
   steps: z.record(z.string(), StepDataSchema),
   foreach: ForEachContextSchema.optional(),
+  while: WhileContextSchema.optional(),
   variables: z.record(z.string(), z.unknown()).optional(),
 });
 export type StepContext = z.infer<typeof StepContextSchema>;

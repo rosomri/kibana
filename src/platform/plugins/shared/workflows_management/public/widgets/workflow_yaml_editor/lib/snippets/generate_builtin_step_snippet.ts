@@ -43,6 +43,18 @@ export function generateBuiltInStepSnippet(
         ],
       };
       break;
+    case 'while':
+      parameters = {
+        condition: '${{ while.check_step.output.status == "pending" }}',
+        'max-iterations': 100,
+        steps: [
+          {
+            name: 'check_step',
+            type: '# Add step type here',
+          },
+        ],
+      };
+      break;
     case 'if':
       parameters = {
         condition: 'steps.step_1.output: "value"',

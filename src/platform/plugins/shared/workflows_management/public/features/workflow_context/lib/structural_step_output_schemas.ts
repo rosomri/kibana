@@ -21,4 +21,17 @@ export const structuralStepOutputSchemas: Record<string, z.ZodSchema> = {
   if: z.object({
     conditionResult: z.boolean(),
   }),
+  while: z.object({
+    iterations: z.number().int(),
+    iteration: z.number().int(),
+    terminated_by: z.enum([
+      'condition',
+      'max_iterations',
+      'max_duration',
+      'timeout',
+      'cancel',
+      'error',
+      'break',
+    ]),
+  }),
 };

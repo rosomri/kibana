@@ -326,6 +326,11 @@ export class WorkflowContextManager {
               stepContext.foreach = stepExecution.state as StepContext['foreach'];
             }
             break;
+          case 'while':
+            if (!stepContext.while) {
+              stepContext.while = stepExecution.state as StepContext['while'];
+            }
+            break;
         }
 
         if (topFrame.scopeId === 'fallback') {
