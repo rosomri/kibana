@@ -159,8 +159,10 @@ export class WorkflowExecuteSyncStrategy {
         } else {
           // Fallback: Extract output from step executions (legacy behavior)
           const stepExecutions =
-            await this.stepExecutionRepository.searchStepExecutionsByExecutionId(state.executionId);
-          // Convert EsWorkflowStepExecution to WorkflowStepExecutionDto (omit spaceId)
+            await this.stepExecutionRepository.getStepExecutionsByWorkflowExecution(
+              state.executionId,
+              execution.stepExecutionIds
+            );
           const stepExecutionDtos: WorkflowStepExecutionDto[] = stepExecutions.map((exec) =>
             omit(exec, ['spaceId'])
           );
