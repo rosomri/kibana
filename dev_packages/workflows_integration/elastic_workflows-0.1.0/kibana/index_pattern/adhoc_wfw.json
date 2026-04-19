@@ -1,0 +1,10 @@
+{
+  "id": "adhoc_wfw",
+  "type": "index-pattern",
+  "attributes": {
+    "title": ".workflows-workflows",
+    "timeFieldName": "created_at",
+    "name": "Workflow Definitions"
+  },
+  "references": []
+}

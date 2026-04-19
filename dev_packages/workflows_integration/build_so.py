@@ -6,7 +6,9 @@ import json
 import uuid
 
 adhoc_wf = {"adhoc_wf": {"id": "adhoc_wf", "title": ".workflows-executions", "timeFieldName": "createdAt"}}
+adhoc_wfw = {"adhoc_wfw": {"id": "adhoc_wfw", "title": ".workflows-workflows", "timeFieldName": "created_at"}}
 wf_ref_inner = [{"type": "index-pattern", "id": "adhoc_wf", "name": "indexpattern-datasource-layer-layer1"}]
+wf_ref_wfw = [{"type": "index-pattern", "id": "adhoc_wfw", "name": "indexpattern-datasource-layer-layer1"}]
 bq = {"query": "NOT isTestRun: true", "language": "kuery"}
 bq_all = {"query": "", "language": "kuery"}
 STATUS_FAILED_KQL = 'status: "failed" OR status: "timed_out"'
@@ -15,6 +17,8 @@ KQL_PROD_ONLY = "NOT isTestRun: true"
 KQL_TEST_ONLY = "isTestRun: true"
 KQL_COMPLETED_PROD = 'status: "completed" AND NOT isTestRun: true'
 KQL_FAILURES_PROD = f"({STATUS_FAILED_KQL}) AND NOT isTestRun: true"
+# Workflow definition docs: exclude soft-deleted (deleted_at set)
+KQL_ACTIVE_WORKFLOW_DOCS = "not deleted_at:*"
 
 
 def uid():
@@ -209,19 +213,35 @@ add("failure-count", "vis", 36, 0, 12, 8, lens_ec(
 # ============================================================
 # ROW 2 (y:8) — EXECUTIONS OVER TIME + TRIGGER BREAKDOWN
 # ============================================================
-# No breakdown by status — split terms + XY was failing to resolve split column IDs; use Status Breakdown panel instead
-c_time, c_count = uid(), uid()
+# Stacked bars: time on X, count on Y, one stack segment per workflow (top N by volume)
+c_time, c_wf, c_count = uid(), uid(), uid()
 add("executions-over-time", "vis", 0, 8, 32, 14, lens_ec(
     "Executions Over Time", "lnsXY",
     {
         c_time: {"operationType": "date_histogram", "sourceField": "createdAt", "label": "Time", "dataType": "date", "isBucketed": True, "params": {"interval": "auto"}},
+        c_wf: {
+            "operationType": "terms",
+            "sourceField": "workflowId",
+            "label": "Workflow",
+            "dataType": "string",
+            "isBucketed": True,
+            "params": {"size": 15, "orderBy": {"type": "column", "columnId": c_count}, "orderDirection": "desc"},
+        },
         c_count: {"operationType": "count", "sourceField": "___records___", "label": "Executions", "dataType": "number", "isBucketed": False},
     },
     {
-        "layers": [{"layerId": "layer1", "layerType": "data", "seriesType": "bar", "xAccessor": c_time, "accessors": [c_count], "palette": {"name": "default", "type": "palette"}}],
-        "legend": {"isVisible": False},
-        "preferredSeriesType": "bar",
+        "layers": [{
+            "layerId": "layer1",
+            "layerType": "data",
+            "seriesType": "bar_stacked",
+            "xAccessor": c_time,
+            "accessors": [c_count],
+            "splitAccessors": [c_wf],
+        }],
+        "legend": {"isVisible": True, "position": "right"},
+        "preferredSeriesType": "bar_stacked",
         "valueLabels": "hide",
+        "yTitle": "Count",
     },
 ))
 
@@ -617,11 +637,86 @@ add(
 )
 
 # ============================================================
+# ROW 7 (y:86) — PER-USER: executions (.workflows-executions) + definitions created (.workflows-workflows)
+# ============================================================
+c_user, c_ex = uid(), uid()
+add(
+    "executions-by-user",
+    "vis",
+    0,
+    86,
+    24,
+    14,
+    lens_ec(
+        "Executions by User",
+        "lnsDatatable",
+        {
+            c_user: {
+                "operationType": "terms",
+                "sourceField": "executedBy",
+                "label": "User",
+                "dataType": "string",
+                "isBucketed": True,
+                "customLabel": True,
+                "params": {"size": 15, "orderBy": {"type": "column", "columnId": c_ex}, "orderDirection": "desc"},
+            },
+            c_ex: {
+                "operationType": "count",
+                "sourceField": "___records___",
+                "label": "Executions",
+                "dataType": "number",
+                "isBucketed": False,
+                "customLabel": True,
+            },
+        },
+        {"layerId": "layer1", "layerType": "data", "columns": [{"columnId": c_user}, {"columnId": c_ex}]},
+    ),
+)
+
+c_creator, c_wf_created = uid(), uid()
+add(
+    "workflows-created-by-user",
+    "vis",
+    24,
+    86,
+    24,
+    14,
+    lens_ec(
+        "Workflow Definitions Created by User",
+        "lnsDatatable",
+        {
+            c_creator: {
+                "operationType": "terms",
+                "sourceField": "createdBy",
+                "label": "User",
+                "dataType": "string",
+                "isBucketed": True,
+                "customLabel": True,
+                "params": {"size": 15, "orderBy": {"type": "column", "columnId": c_wf_created}, "orderDirection": "desc"},
+            },
+            c_wf_created: {
+                "operationType": "count",
+                "sourceField": "___records___",
+                "label": "Workflows created",
+                "dataType": "number",
+                "isBucketed": False,
+                "customLabel": True,
+            },
+        },
+        {"layerId": "layer1", "layerType": "data", "columns": [{"columnId": c_creator}, {"columnId": c_wf_created}]},
+        query={"query": KQL_ACTIVE_WORKFLOW_DOCS, "language": "kuery"},
+        adhoc=adhoc_wfw,
+        refs=wf_ref_wfw,
+    ),
+    wf_ref_wfw,
+)
+
+# ============================================================
 # BUILD SAVED OBJECT
 # ============================================================
 so = {
     "attributes": {
-        "description": "Comprehensive monitoring for Elastic Workflows. Per-workflow executions, failures, success rate, test runs, and durations; plus failure trends and performance analysis. Click workflow IDs in tables to open the workflow in Workflows.",
+        "description": "Comprehensive monitoring for Elastic Workflows. Per-workflow executions, failures, success rate, test runs, and durations; executions and workflow definitions by user; plus failure trends and performance analysis. Click workflow IDs in tables to open the workflow in Workflows.",
         "kibanaSavedObjectMeta": {"searchSourceJSON": "{}"},
         "optionsJSON": json.dumps({
             "hidePanelTitles": False,
