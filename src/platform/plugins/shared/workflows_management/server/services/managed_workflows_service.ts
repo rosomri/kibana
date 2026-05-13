@@ -193,6 +193,8 @@ export class ManagedWorkflowsService {
       );
     }
 
+    // For unchanged definitions, preserve the current document as-is.
+    // Enforced enablement is reapplied only when a managed update is installed.
     if (existing.definitionHash === definitionHash) {
       if (this.areTemplateValuesEqual(existing.managedTemplateValues, managedTemplateValues)) {
         return;
