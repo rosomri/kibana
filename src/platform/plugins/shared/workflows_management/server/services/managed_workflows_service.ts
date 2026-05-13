@@ -21,14 +21,9 @@ import type {
   ManagedWorkflowOperationOptions,
 } from '@kbn/workflows/server/types';
 import type { WorkflowsExecutionEnginePluginStart } from '@kbn/workflows-execution-engine/server';
-import type { WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extensions/server';
 import { updateYamlField } from '@kbn/workflows-yaml';
 import type { WorkflowCrudService } from './workflow_crud_service';
-import { getWorkflowZodSchema } from '../../common/schema';
-import {
-  computeDefinitionHash,
-  prepareWorkflowDocumentFromYaml,
-} from '../api/lib/workflow_prepare';
+import { computeDefinitionHash } from '../api/lib/workflow_prepare';
 import type { WorkflowProperties } from '../storage/workflow_storage';
 
 const MANAGED_WORKFLOW_SYSTEM_USER = 'elastic/kibana';
@@ -43,7 +38,6 @@ const isVersionConflictError = (error: unknown): boolean => {
 
 interface ManagedWorkflowsServiceDeps {
   crudService: WorkflowCrudService;
-  workflowsExtensions: WorkflowsExtensionsServerPluginStart;
   workflowsExecutionEngine: WorkflowsExecutionEnginePluginStart;
   logger: Logger;
 }
@@ -430,20 +424,12 @@ export class ManagedWorkflowsService {
       enabled,
       createdAt,
     } = params;
-    const triggerDefinitions = this.deps.workflowsExtensions.getAllTriggerDefinitions();
-    const zodSchema = getWorkflowZodSchema(
-      {},
-      triggerDefinitions.map((trigger) => trigger.id)
-    );
-
-    const { workflowData } = prepareWorkflowDocumentFromYaml({
+    const { workflowData } = await this.deps.crudService.prepareWorkflowDocumentForStorage({
       id: workflowDocumentId,
       yaml,
-      zodSchema,
-      authenticatedUser: MANAGED_WORKFLOW_SYSTEM_USER,
+      actor: MANAGED_WORKFLOW_SYSTEM_USER,
       now,
       spaceId,
-      triggerDefinitions,
       managedWorkflowMetadata: {
         managed: true,
         managedBy: definition.pluginId,

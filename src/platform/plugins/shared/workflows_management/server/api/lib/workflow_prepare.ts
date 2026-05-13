@@ -32,7 +32,7 @@ export const computeDefinitionHash = (yaml: string): string => {
   return createHash('sha256').update(yaml.trim()).digest('hex');
 };
 
-type ManagedWorkflowMetadata = Partial<
+export type ManagedWorkflowMetadata = Partial<
   Pick<
     WorkflowProperties,
     | 'managed'

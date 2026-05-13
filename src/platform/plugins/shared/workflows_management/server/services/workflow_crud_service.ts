@@ -15,12 +15,14 @@ import type {
   EsWorkflow,
   UpdatedWorkflowResponseDto,
   WorkflowDetailDto,
+  WorkflowYaml,
 } from '@kbn/workflows';
 import { buildWorkflowSpaceFilter } from '@kbn/workflows/server';
 import type { WorkflowPartialDetailDto } from '@kbn/workflows/types/v1';
 
 import { WorkflowConflictError } from '@kbn/workflows-yaml';
 import type { WorkflowCrudDeps } from './types';
+import { getWorkflowZodSchema } from '../../common/schema';
 import { extractBulkItemError } from '../api/lib/bulk_response_helpers';
 import { deleteWorkflows } from '../api/lib/workflow_deletion';
 import { disableAllWorkflows } from '../api/lib/workflow_disable_all';
@@ -35,6 +37,7 @@ import {
   prepareWorkflowDocumentFromYaml,
   workflowYamlDeclaresTopLevelEnabled,
 } from '../api/lib/workflow_prepare';
+import type { ManagedWorkflowMetadata } from '../api/lib/workflow_prepare';
 import type { DeleteWorkflowsResponse } from '../api/workflows_management_api';
 import type { BulkFailureEntry, BulkWorkflowEntry } from '../lib/bulk_id_helpers';
 import {
@@ -132,6 +135,38 @@ export class WorkflowCrudService {
         ? { if_seq_no: options.ifSeqNo, if_primary_term: options.ifPrimaryTerm }
         : {}),
       refresh: true,
+    });
+  }
+
+  async prepareWorkflowDocumentForStorage(params: {
+    actor: string;
+    id?: string;
+    now: Date;
+    spaceId: string;
+    request?: KibanaRequest;
+    managedWorkflowMetadata?: ManagedWorkflowMetadata;
+    yaml: string;
+  }): Promise<{ id: string; workflowData: WorkflowProperties; definition?: WorkflowYaml }> {
+    const registeredTriggerIds =
+      this.deps.workflowsExtensions?.getAllTriggerDefinitions().map((t) => t.id) ?? [];
+    const zodSchema = params.request
+      ? await this.deps.validationService.getWorkflowZodSchema(
+          { loose: false },
+          params.spaceId,
+          params.request
+        )
+      : getWorkflowZodSchema({}, registeredTriggerIds);
+    const triggerDefinitions = this.deps.workflowsExtensions?.getAllTriggerDefinitions() ?? [];
+
+    return prepareWorkflowDocumentFromYaml({
+      id: params.id,
+      yaml: params.yaml,
+      zodSchema,
+      authenticatedUser: params.actor,
+      now: params.now,
+      spaceId: params.spaceId,
+      triggerDefinitions,
+      managedWorkflowMetadata: params.managedWorkflowMetadata,
     });
   }
 
