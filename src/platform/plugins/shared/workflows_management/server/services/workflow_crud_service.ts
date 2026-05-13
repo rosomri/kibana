@@ -32,7 +32,7 @@ import {
   applyFieldUpdates,
   applyYamlUpdate,
   getTriggerTypesFromDefinition,
-  prepareWorkflowDocument,
+  prepareWorkflowDocumentFromYaml,
   workflowYamlDeclaresTopLevelEnabled,
 } from '../api/lib/workflow_prepare';
 import type { DeleteWorkflowsResponse } from '../api/workflows_management_api';
@@ -61,6 +61,18 @@ const isVersionConflictError = (error: unknown): boolean => {
   return e.statusCode === VERSION_CONFLICT_STATUS || e.meta?.statusCode === VERSION_CONFLICT_STATUS;
 };
 
+export interface VersionedWorkflowDocument {
+  source: WorkflowProperties;
+  seqNo: number;
+  primaryTerm: number;
+}
+
+export interface IndexWorkflowDocumentOptions {
+  create?: boolean;
+  ifPrimaryTerm?: number;
+  ifSeqNo?: number;
+}
+
 export class WorkflowCrudService {
   constructor(private readonly deps: WorkflowCrudDeps) {}
 
@@ -81,10 +93,44 @@ export class WorkflowCrudService {
     return (hit?._source as WorkflowProperties | undefined) ?? null;
   }
 
-  async indexWorkflowDocument(id: string, document: WorkflowProperties): Promise<void> {
+  async getWorkflowDocumentWithVersion(
+    id: string,
+    spaceId: string,
+    options?: { includeDeleted?: boolean; includeGlobal?: boolean }
+  ): Promise<VersionedWorkflowDocument | null> {
+    const { must, must_not } = buildWorkflowSpaceFilter(spaceId, options);
+    must.push({ ids: { values: [id] } });
+    const searchResponse = await this.deps.workflowStorage.getClient().search({
+      query: { bool: { must, must_not } },
+      seq_no_primary_term: true,
+      size: 1,
+      track_total_hits: false,
+    });
+
+    const hit = searchResponse.hits.hits[0];
+    if (!hit?._source || hit._seq_no == null || hit._primary_term == null) {
+      return null;
+    }
+
+    return {
+      source: hit._source as WorkflowProperties,
+      seqNo: hit._seq_no,
+      primaryTerm: hit._primary_term,
+    };
+  }
+
+  async indexWorkflowDocument(
+    id: string,
+    document: WorkflowProperties,
+    options?: IndexWorkflowDocumentOptions
+  ): Promise<void> {
     await this.deps.workflowStorage.getClient().index({
       id,
       document,
+      ...(options?.create ? { op_type: 'create' as const } : {}),
+      ...(options?.ifSeqNo != null && options?.ifPrimaryTerm != null
+        ? { if_seq_no: options.ifSeqNo, if_primary_term: options.ifPrimaryTerm }
+        : {}),
       refresh: true,
     });
   }
@@ -236,8 +282,9 @@ export class WorkflowCrudService {
       id: baseId,
       workflowData,
       definition,
-    } = prepareWorkflowDocument({
-      workflow,
+    } = prepareWorkflowDocumentFromYaml({
+      id: workflow.id,
+      yaml: workflow.yaml,
       zodSchema,
       authenticatedUser,
       now,
@@ -310,8 +357,9 @@ export class WorkflowCrudService {
         if (customId) {
           validateWorkflowId(customId);
         }
-        const prepared = prepareWorkflowDocument({
-          workflow: workflows[i],
+        const prepared = prepareWorkflowDocumentFromYaml({
+          id: workflows[i].id,
+          yaml: workflows[i].yaml,
           zodSchema,
           authenticatedUser,
           now,
@@ -666,12 +714,7 @@ export class WorkflowCrudService {
 
     for (let attempt = 0; attempt <= TOCTOU_MAX_RETRIES; attempt++) {
       try {
-        await this.deps.workflowStorage.getClient().index({
-          id,
-          document,
-          op_type: 'create',
-          refresh: true,
-        });
+        await this.indexWorkflowDocument(id, document, { create: true });
         return id;
       } catch (error) {
         if (!isVersionConflictError(error)) {

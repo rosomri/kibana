@@ -8,8 +8,6 @@
  */
 
 import type { KibanaRequest, Logger } from '@kbn/core/server';
-import { transformWorkflowYamlJsontoEsWorkflow } from '@kbn/workflows';
-import type { EsWorkflowCreate, WorkflowYaml } from '@kbn/workflows';
 import {
   getManagedWorkflowDefinition,
   getManagedWorkflowDefinitions,
@@ -23,15 +21,29 @@ import type {
   ManagedWorkflowOperationOptions,
 } from '@kbn/workflows/server/types';
 import type { WorkflowsExecutionEnginePluginStart } from '@kbn/workflows-execution-engine/server';
-import { parseYamlToJSONWithoutValidation, updateYamlField } from '@kbn/workflows-yaml';
+import type { WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extensions/server';
+import { updateYamlField } from '@kbn/workflows-yaml';
 import type { WorkflowCrudService } from './workflow_crud_service';
-import { computeDefinitionHash, getTriggerTypesFromDefinition } from '../api/lib/workflow_prepare';
+import { getWorkflowZodSchema } from '../../common/schema';
+import {
+  computeDefinitionHash,
+  prepareWorkflowDocumentFromYaml,
+} from '../api/lib/workflow_prepare';
 import type { WorkflowProperties } from '../storage/workflow_storage';
 
 const MANAGED_WORKFLOW_SYSTEM_USER = 'elastic/kibana';
+const MAX_MANAGED_INSTALL_RETRIES = 2;
+const VERSION_CONFLICT_STATUS = 409;
+
+const isVersionConflictError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const e = error as { statusCode?: number; meta?: { statusCode?: number } };
+  return e.statusCode === VERSION_CONFLICT_STATUS || e.meta?.statusCode === VERSION_CONFLICT_STATUS;
+};
 
 interface ManagedWorkflowsServiceDeps {
   crudService: WorkflowCrudService;
+  workflowsExtensions: WorkflowsExtensionsServerPluginStart;
   workflowsExecutionEngine: WorkflowsExecutionEnginePluginStart;
   logger: Logger;
 }
@@ -119,6 +131,27 @@ export class ManagedWorkflowsService {
     options: ManagedWorkflowOperationOptions,
     registeredPluginId: string
   ): Promise<void> {
+    for (let attempt = 0; attempt <= MAX_MANAGED_INSTALL_RETRIES; attempt++) {
+      try {
+        await this.installManagedWorkflowOnce(id, options, registeredPluginId);
+        return;
+      } catch (error) {
+        if (!isVersionConflictError(error) || attempt === MAX_MANAGED_INSTALL_RETRIES) {
+          throw error;
+        }
+
+        this.logger.debug(
+          `Managed workflows: retrying install for '${id}' after concurrent update conflict`
+        );
+      }
+    }
+  }
+
+  private async installManagedWorkflowOnce(
+    id: ManagedWorkflowId,
+    options: ManagedWorkflowOperationOptions,
+    registeredPluginId: string
+  ): Promise<void> {
     const definition = getManagedWorkflowDefinition(id);
     if (!definition) {
       throw new Error(`Unknown managed workflow id: ${id}`);
@@ -131,12 +164,13 @@ export class ManagedWorkflowsService {
     this.trackInstall(registeredPluginId, id, workflowDocumentId, spaceId);
 
     const isStartupWindow = !this.readyPluginIds.has(registeredPluginId);
-    const now = new Date().toISOString();
+    const now = new Date();
     const definitionHash = this.computeManagedDefinitionHash(definition);
-    const existing = await this.deps.crudService.getWorkflowDocumentSource(
+    const existingDocument = await this.deps.crudService.getWorkflowDocumentWithVersion(
       workflowDocumentId,
       spaceId
     );
+    const existing = existingDocument?.source;
     const { yaml, managedTemplateValues } = this.resolveManagedWorkflowYaml({
       definition,
       values: options.values,
@@ -144,15 +178,18 @@ export class ManagedWorkflowsService {
     });
 
     if (!existing) {
-      const document = this.buildManagedWorkflowDocument({
+      const document = await this.prepareManagedWorkflowDocument({
         definition,
+        workflowDocumentId,
         yaml,
         managedTemplateValues,
+        definitionHash,
         spaceId,
         now,
-        definitionHash,
       });
-      await this.deps.crudService.indexWorkflowDocument(workflowDocumentId, document);
+      await this.deps.crudService.indexWorkflowDocument(workflowDocumentId, document, {
+        create: true,
+      });
       return;
     }
 
@@ -173,17 +210,21 @@ export class ManagedWorkflowsService {
     }
 
     const enabled = definition.management.enablement === 'enforced' ? undefined : existing.enabled;
-    const document = this.buildManagedWorkflowDocument({
+    const document = await this.prepareManagedWorkflowDocument({
       definition,
+      workflowDocumentId,
       yaml,
       managedTemplateValues,
+      definitionHash,
       spaceId,
       now,
-      definitionHash,
       enabled,
       createdAt: existing.created_at,
     });
-    await this.deps.crudService.indexWorkflowDocument(workflowDocumentId, document);
+    await this.deps.crudService.indexWorkflowDocument(workflowDocumentId, document, {
+      ifSeqNo: existingDocument.seqNo,
+      ifPrimaryTerm: existingDocument.primaryTerm,
+    });
   }
 
   public async uninstallManagedWorkflow(
@@ -350,63 +391,73 @@ export class ManagedWorkflowsService {
     }
   }
 
-  private buildManagedWorkflowDocument(params: {
+  private applyManagedEnabledState(
+    document: WorkflowProperties,
+    enabled: boolean
+  ): WorkflowProperties {
+    return {
+      ...document,
+      enabled,
+      yaml: updateYamlField(document.yaml, 'enabled', enabled),
+      definition: document.definition
+        ? {
+            ...document.definition,
+            enabled,
+          }
+        : null,
+    };
+  }
+
+  private async prepareManagedWorkflowDocument(params: {
     definition: ManagedWorkflowDefinition;
+    workflowDocumentId: string;
     yaml: string;
     managedTemplateValues: ManagedWorkflowTemplateValues | null;
-    spaceId: string;
-    now: string;
     definitionHash: string;
+    spaceId: string;
+    now: Date;
     enabled?: boolean;
     createdAt?: string;
-  }): WorkflowProperties {
-    const { definition, yaml, managedTemplateValues, spaceId, now, definitionHash, createdAt } =
-      params;
-    const parsed = parseYamlToJSONWithoutValidation(yaml);
+  }): Promise<WorkflowProperties> {
+    const {
+      definition,
+      workflowDocumentId,
+      yaml,
+      managedTemplateValues,
+      definitionHash,
+      spaceId,
+      now,
+      enabled,
+      createdAt,
+    } = params;
+    const triggerDefinitions = this.deps.workflowsExtensions.getAllTriggerDefinitions();
+    const zodSchema = getWorkflowZodSchema(
+      {},
+      triggerDefinitions.map((trigger) => trigger.id)
+    );
 
-    let workflowModel: EsWorkflowCreate | null = null;
-    if (parsed.success && parsed.json && typeof parsed.json === 'object') {
-      try {
-        workflowModel = transformWorkflowYamlJsontoEsWorkflow(
-          parsed.json as unknown as WorkflowYaml
-        );
-      } catch {
-        workflowModel = null;
-      }
-    }
-
-    const yamlDefinedEnabled = workflowModel?.enabled ?? true;
-    const resolvedEnabled = params.enabled ?? yamlDefinedEnabled;
-    const resolvedYaml = updateYamlField(yaml, 'enabled', resolvedEnabled);
-    const resolvedDefinition = workflowModel?.definition
-      ? {
-          ...workflowModel.definition,
-          enabled: resolvedEnabled,
-        }
-      : null;
+    const { workflowData } = prepareWorkflowDocumentFromYaml({
+      id: workflowDocumentId,
+      yaml,
+      zodSchema,
+      authenticatedUser: MANAGED_WORKFLOW_SYSTEM_USER,
+      now,
+      spaceId,
+      triggerDefinitions,
+      managedWorkflowMetadata: {
+        managed: true,
+        managedBy: definition.pluginId,
+        definitionHash,
+        managedTemplateValues: managedTemplateValues as Record<string, unknown> | null,
+        originManagedWorkflowId: definition.id,
+        lifecycle: definition.management.lifecycle,
+        managedVersion: definition.version,
+      },
+    });
 
     return {
-      name: workflowModel?.name ?? definition.id,
-      description: workflowModel?.description,
-      enabled: resolvedEnabled,
-      tags: workflowModel?.tags ?? [],
-      triggerTypes: getTriggerTypesFromDefinition(resolvedDefinition ?? undefined),
-      yaml: resolvedYaml,
-      definition: resolvedDefinition,
-      createdBy: MANAGED_WORKFLOW_SYSTEM_USER,
-      lastUpdatedBy: MANAGED_WORKFLOW_SYSTEM_USER,
-      spaceId,
-      managed: true,
-      managedBy: definition.pluginId,
-      definitionHash,
-      managedTemplateValues: managedTemplateValues as Record<string, unknown> | null,
-      originManagedWorkflowId: definition.id,
-      lifecycle: definition.management.lifecycle,
-      managedVersion: definition.version,
-      deleted_at: null,
-      valid: workflowModel?.valid ?? false,
-      created_at: createdAt ?? now,
-      updated_at: now,
+      ...this.applyManagedEnabledState(workflowData, enabled ?? workflowData.enabled),
+      ...(createdAt ? { created_at: createdAt } : {}),
     };
   }
 
