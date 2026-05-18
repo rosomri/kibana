@@ -11,6 +11,7 @@ import { parse } from 'yaml';
 import { z } from '@kbn/zod/v4';
 import { managedWorkflowDefinitions } from '.';
 import type { ManagedWorkflowTemplateValuesById } from '.';
+import { SECURITY_ALERT_VALIDATION_WORKFLOW_ID } from './definitions/security_solution';
 import { EXAMPLE_MANAGED_WORKFLOW_ID } from './definitions/workflows_extensions_example';
 import type { ManagedWorkflowDefinition, ManagedWorkflowTemplateValues } from './types';
 import { WorkflowSchemaBase } from '../spec/schema';
@@ -98,6 +99,11 @@ describe('managedWorkflowDefinitions', () => {
   it('contains unique workflow ids', () => {
     const ids = managedWorkflowDefinitions.map(({ id }) => id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('contains the Security alert validation workflow', () => {
+    const ids = managedWorkflowDefinitions.map(({ id }) => id);
+    expect(ids).toContain(SECURITY_ALERT_VALIDATION_WORKFLOW_ID);
   });
 
   it.each(managedDefinitionsById)('%s uses the reserved system- id prefix', (id) => {

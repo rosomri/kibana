@@ -8,6 +8,10 @@
  */
 
 import {
+  SECURITY_ALERT_VALIDATION_WORKFLOW,
+  SECURITY_ALERT_VALIDATION_WORKFLOW_ID,
+} from './definitions/security_solution';
+import {
   EXAMPLE_MANAGED_WORKFLOW,
   EXAMPLE_MANAGED_WORKFLOW_ID,
 } from './definitions/workflows_extensions_example';
@@ -19,7 +23,10 @@ import type {
 
 export type { ManagedWorkflowDefinition, ManagedWorkflowManagement, ManagedWorkflowTemplateValues };
 
-export const managedWorkflowDefinitions = [EXAMPLE_MANAGED_WORKFLOW] as const;
+export const managedWorkflowDefinitions = [
+  EXAMPLE_MANAGED_WORKFLOW,
+  SECURITY_ALERT_VALIDATION_WORKFLOW,
+] as const;
 
 type ManagedWorkflowDefinitionById = {
   [TDefinition in (typeof managedWorkflowDefinitions)[number] as TDefinition['id']]: TDefinition;
@@ -49,4 +56,4 @@ export const getManagedWorkflowDefinitions = (): ManagedWorkflowDefinition[] => 
   return [...managedWorkflowDefinitions];
 };
 
-export { EXAMPLE_MANAGED_WORKFLOW_ID };
+export { EXAMPLE_MANAGED_WORKFLOW_ID, SECURITY_ALERT_VALIDATION_WORKFLOW_ID };
