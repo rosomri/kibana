@@ -89,14 +89,19 @@ const getManagedFilterValue = (
 
 export function WorkflowsPage() {
   const { application, featureFlags } = useKibana().services;
-  const showManagedWorkflowsFilter = useShowManagedWorkflowsSetting();
+  const isManagedWorkflowsSettingEnabled = useShowManagedWorkflowsSetting();
+  const { euiTheme } = useEuiTheme();
+  const location = useLocation();
+  const history = useHistory();
+  const { canCreateWorkflow, canReadWorkflow, canReadManagedWorkflow, canUpdateWorkflow } =
+    useWorkflowsCapabilities();
+  const showManagedWorkflowsFilter = Boolean(
+    isManagedWorkflowsSettingEnabled && canReadWorkflow && canReadManagedWorkflow
+  );
   const { data: filtersData } = useWorkflowFiltersOptions(
     ['enabled', 'createdBy', 'tags'],
     showManagedWorkflowsFilter ? 'all' : undefined
   );
-  const { euiTheme } = useEuiTheme();
-  const location = useLocation();
-  const history = useHistory();
 
   // Keep filters in local state (not in URL)
   const [filters, setFilters] = useState<Partial<WorkflowsSearchParams>>({});
@@ -158,7 +163,6 @@ export function WorkflowsPage() {
   const { data: workflows } = useWorkflows(search);
   useWorkflowsBreadcrumbs();
 
-  const { canCreateWorkflow, canUpdateWorkflow } = useWorkflowsCapabilities();
   /** Import uses bulk APIs that require both create and update; gate UI to match server authz. */
   const canImportWorkflows = Boolean(canCreateWorkflow && canUpdateWorkflow);
   const isExecutionStatsBarEnabled = featureFlags?.getBooleanValue(
