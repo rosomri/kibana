@@ -70,12 +70,18 @@ const renderPage = () =>
     </TestWrapper>
   );
 
-function mockCapabilities(createWorkflow: boolean, updateWorkflow: boolean): void {
+function mockCapabilities(
+  createWorkflow: boolean,
+  updateWorkflow: boolean,
+  canReadManagedWorkflow = true
+): void {
   mockUseKibana.mockReturnValue({
     services: {
       application: {
         capabilities: {
           workflowsManagement: {
+            readWorkflow: true,
+            readManagedWorkflow: canReadManagedWorkflow,
             createWorkflow,
             updateWorkflow,
           },
@@ -234,5 +240,18 @@ describe('WorkflowsPage authorization', () => {
         'all'
       );
     });
+  });
+
+  it('hides the managed filter when the user lacks managed workflow read', () => {
+    mockCapabilities(true, true, false);
+    mockUseShowManagedWorkflowsSetting.mockReturnValue(true);
+    mockUseWorkflows.mockReturnValue({
+      ...emptyWorkflowsResult,
+      data: { results: [{}], total: 1 },
+    } as any);
+
+    renderPage();
+
+    expect(screen.queryByTestId('managed-filter-popover-button')).not.toBeInTheDocument();
   });
 });
