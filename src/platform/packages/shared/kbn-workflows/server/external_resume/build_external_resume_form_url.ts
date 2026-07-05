@@ -13,16 +13,19 @@ export function buildExternalResumeFormUrl({
   kibanaUrl,
   spaceId,
   executionId,
-  apiKey,
+  kid,
+  token,
 }: {
   kibanaUrl: string;
   spaceId: string;
   executionId: string;
-  apiKey: string;
+  kid: string;
+  token: string;
 }): string {
   const spacePrefix = spaceId === 'default' ? '' : `/s/${spaceId}`;
   const path = EXTERNAL_RESUME_FORM_API_PATH.replace('{executionId}', executionId);
   const url = new URL(`${kibanaUrl}${spacePrefix}${path}`);
-  url.searchParams.set('apiKey', apiKey);
+  url.searchParams.set('kid', kid);
+  url.searchParams.set('token', token);
   return url.toString();
 }

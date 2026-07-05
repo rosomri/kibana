@@ -129,7 +129,8 @@ export class WaitForApprovalStepImpl implements NodeImplementation, CancellableN
         message,
         approveLabel,
         rejectLabel,
-        encodedApiKey: apiKey.encoded,
+        kid: apiKey.id,
+        token: apiKey.token,
         execution,
         spaceId,
       });
@@ -147,7 +148,8 @@ export class WaitForApprovalStepImpl implements NodeImplementation, CancellableN
     message,
     approveLabel,
     rejectLabel,
-    encodedApiKey,
+    kid,
+    token,
     execution,
     spaceId,
   }: {
@@ -157,7 +159,8 @@ export class WaitForApprovalStepImpl implements NodeImplementation, CancellableN
     message: string;
     approveLabel: string;
     rejectLabel: string;
-    encodedApiKey: string;
+    kid: string;
+    token: string;
     execution: ReturnType<WorkflowExecutionRuntimeManager['getWorkflowExecution']>;
     spaceId: string;
   }): Promise<void> {
@@ -165,7 +168,8 @@ export class WaitForApprovalStepImpl implements NodeImplementation, CancellableN
       kibanaUrl: getKibanaUrl(this.dependencies.coreStart, this.dependencies.cloudSetup),
       spaceId,
       executionId: execution.id,
-      encodedApiKey,
+      kid,
+      token,
     });
 
     await sendWaitForApprovalNotifications({

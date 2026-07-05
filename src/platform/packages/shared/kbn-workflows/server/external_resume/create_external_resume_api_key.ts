@@ -7,13 +7,13 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+import { createHash, randomBytes } from 'node:crypto';
 import type { ElasticsearchClient } from '@kbn/core/server';
 import { WORKFLOW_EXTERNAL_RESUME_APPLICATION, WORKFLOW_EXTERNAL_RESUME_ROLE } from './constants';
 
 export interface ExternalResumeApiKey {
   id: string;
-  encoded: string;
-  expiration?: number;
+  token: string;
 }
 
 export async function createExternalResumeApiKey({
@@ -31,7 +31,10 @@ export async function createExternalResumeApiKey({
   spaceId: string;
   expiration: string;
 }): Promise<ExternalResumeApiKey> {
-  return esClient.security.createApiKey({
+  const token = randomBytes(32).toString('hex');
+  const resumeTokenHash = createHash('sha256').update(token).digest('hex');
+
+  const { id } = await esClient.security.createApiKey({
     name: `workflow-external-resume-${executionId}-${stepId}`,
     expiration,
     role_descriptors: {
@@ -44,12 +47,15 @@ export async function createExternalResumeApiKey({
     },
     metadata: {
       application: WORKFLOW_EXTERNAL_RESUME_APPLICATION,
+      resume_token_hash: resumeTokenHash,
       workflow_execution_id: executionId,
       workflow_id: workflowId,
       workflow_space_id: spaceId,
       workflow_step_id: stepId,
     },
   });
+
+  return { id, token };
 }
 
 export async function invalidateExternalResumeApiKey(

@@ -9,7 +9,6 @@
 
 import path from 'path';
 import { schema } from '@kbn/config-schema';
-import { MAX_HITL_EXTERNAL_RESUME_API_KEY_LENGTH } from '@kbn/workflows';
 import { EXTERNAL_RESUME_FORM_API_PATH } from '@kbn/workflows/server';
 import {
   EXTERNAL_RESUME_ROUTE_OPTIONS,
@@ -30,9 +29,9 @@ export function registerExternalResumeFormRoute(deps: RouteDependencies) {
       path: EXTERNAL_RESUME_FORM_API_PATH,
       access: 'public',
       security: EXTERNAL_RESUME_SECURITY,
-      summary: 'Show the external input form for a paused workflow execution',
+      summary: 'Get the external input form for a paused workflow execution',
       description:
-        'Render an HTML form for submitting external input to a paused waitForInput step. Does not resume the execution.',
+        'Returns an HTML form for submitting external input to a paused waitForInput step. Does not resume the execution.',
       options: EXTERNAL_RESUME_ROUTE_OPTIONS,
     })
     .addVersion(
@@ -46,9 +45,13 @@ export function registerExternalResumeFormRoute(deps: RouteDependencies) {
           request: {
             params: executionIdParamSchema,
             query: schema.object({
-              apiKey: schema.string({
-                maxLength: MAX_HITL_EXTERNAL_RESUME_API_KEY_LENGTH,
-                meta: { description: 'External resume API key credential.' },
+              kid: schema.string({
+                maxLength: 64,
+                meta: { description: 'The API key ID created when the workflow execution paused.' },
+              }),
+              token: schema.string({
+                maxLength: 128,
+                meta: { description: 'The resume token authenticating this request.' },
               }),
             }),
           },
@@ -57,9 +60,10 @@ export function registerExternalResumeFormRoute(deps: RouteDependencies) {
       withAvailabilityCheck(async (context, request, response) => {
         try {
           const { executionId } = request.params;
-          const { apiKey } = request.query;
+          const { kid, token } = request.query;
           const body = await api.getExternalResumeFormPage({
-            apiKey,
+            kid,
+            token,
             executionId,
             spaceId: spaces.getSpaceId(request),
             basePath: request.basePath,

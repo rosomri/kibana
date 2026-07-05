@@ -122,13 +122,15 @@ export class WaitForInputStepImpl implements NodeImplementation, CancellableNode
         kibanaUrl,
         spaceId,
         executionId: execution.id,
-        apiKey: apiKey.encoded,
+        kid: apiKey.id,
+        token: apiKey.token,
       });
       const queryLink = buildExternalResumeUrl({
         kibanaUrl,
         spaceId,
         executionId: execution.id,
-        apiKey: apiKey.encoded,
+        kid: apiKey.id,
+        token: apiKey.token,
       });
 
       const hitlTemplateContext = {

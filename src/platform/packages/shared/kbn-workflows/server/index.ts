@@ -44,7 +44,6 @@ export {
   invalidateExternalResumeApiKey,
 } from './external_resume/create_external_resume_api_key';
 export type { ExternalResumeApiKey } from './external_resume/create_external_resume_api_key';
-export { getAuthenticatedExternalResumeApiKeyId } from './external_resume/external_resume_api_key_request';
 
 export type {
   GetManagedWorkflowStatusOptions,

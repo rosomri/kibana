@@ -27,7 +27,7 @@ export async function mintHitlExternalResumeApiKey({
   stepId: string;
   spaceId: string;
   timeout: string;
-}): Promise<{ id: string; encoded: string }> {
+}): Promise<{ id: string; token: string }> {
   const esClient = stepExecutionRuntime.contextManager.getEsClientAsUser();
   return createExternalResumeApiKey({
     esClient,

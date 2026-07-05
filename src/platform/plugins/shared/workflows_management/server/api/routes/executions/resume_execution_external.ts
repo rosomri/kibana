@@ -9,7 +9,6 @@
 
 import path from 'path';
 import { schema } from '@kbn/config-schema';
-import { MAX_HITL_EXTERNAL_RESUME_API_KEY_LENGTH } from '@kbn/workflows';
 import { EXTERNAL_RESUME_API_PATH } from '@kbn/workflows/server';
 import {
   EXTERNAL_RESUME_POST_ROUTE_OPTIONS,
@@ -18,7 +17,7 @@ import {
   handleExternalResumeError,
   htmlSuccess,
 } from './external_resume_route_helpers';
-import { resolveExternalResumeApiKey } from '../../external_resume/external_resume_service';
+import { resolveExternalResumeCredentials } from '../../external_resume/external_resume_service';
 import type { RouteDependencies } from '../types';
 import { API_VERSION } from '../utils/route_constants';
 import { executionIdParamSchema } from '../utils/schemas';
@@ -34,7 +33,7 @@ export function registerExternalResumeExecutionPostRoute(deps: RouteDependencies
       security: EXTERNAL_RESUME_SECURITY,
       summary: 'Submit external input for a paused workflow execution',
       description:
-        'Resume a paused waitForInput step using an external resume API key and submitted form data. Authenticate with an Authorization: ApiKey header or an apiKey query parameter (header takes precedence). Returns an HTML confirmation page.',
+        'Resume a workflow execution that is paused and waiting for external input. Submit input values as a JSON request body, authenticated with kid and token query parameters. Returns an HTML confirmation page.',
       options: EXTERNAL_RESUME_POST_ROUTE_OPTIONS,
     })
     .addVersion(
@@ -48,15 +47,14 @@ export function registerExternalResumeExecutionPostRoute(deps: RouteDependencies
           request: {
             params: executionIdParamSchema,
             query: schema.object({
-              apiKey: schema.maybe(
-                schema.string({
-                  maxLength: MAX_HITL_EXTERNAL_RESUME_API_KEY_LENGTH,
-                  meta: {
-                    description:
-                      'External resume API key credential. Used when Authorization header is not provided.',
-                  },
-                })
-              ),
+              kid: schema.string({
+                maxLength: 64,
+                meta: { description: 'The API key ID created when the workflow execution paused.' },
+              }),
+              token: schema.string({
+                maxLength: 128,
+                meta: { description: 'The resume token authenticating this request.' },
+              }),
             }),
             body: schema.object({}, { unknowns: 'allow' }),
           },
@@ -65,13 +63,11 @@ export function registerExternalResumeExecutionPostRoute(deps: RouteDependencies
       withAvailabilityCheck(async (context, request, response) => {
         try {
           const { executionId } = request.params;
-          const apiKey = resolveExternalResumeApiKey({
-            authorization: request.headers?.authorization,
-            queryApiKey: request.query.apiKey,
-          });
+          const { kid, token } = resolveExternalResumeCredentials(request.query);
           const spaceId = spaces.getSpaceId(request);
           const { resumedBy } = await api.resumeWorkflowExecutionExternallyWithInput({
-            apiKey,
+            kid,
+            token,
             executionId,
             spaceId,
             input: request.body as Record<string, unknown>,
@@ -119,9 +115,13 @@ export function registerExternalResumeExecutionGetRoute(deps: RouteDependencies)
             params: executionIdParamSchema,
             query: schema.object(
               {
-                apiKey: schema.string({
-                  maxLength: MAX_HITL_EXTERNAL_RESUME_API_KEY_LENGTH,
-                  meta: { description: 'External resume API key credential.' },
+                kid: schema.string({
+                  maxLength: 64,
+                  meta: { description: 'The API key ID created when the workflow execution paused.' },
+                }),
+                token: schema.string({
+                  maxLength: 128,
+                  meta: { description: 'The resume token authenticating this request.' },
                 }),
                 approved: schema.maybe(
                   schema.oneOf(
@@ -129,7 +129,7 @@ export function registerExternalResumeExecutionGetRoute(deps: RouteDependencies)
                     {
                       meta: {
                         description:
-                          'Required for waitForApproval. Whether the external actor approved the workflow pause.',
+                          'Indicates whether a human reviewer approved the paused step. Required for waitForApproval.',
                       },
                     }
                   )
@@ -143,12 +143,10 @@ export function registerExternalResumeExecutionGetRoute(deps: RouteDependencies)
       withAvailabilityCheck(async (context, request, response) => {
         try {
           const { executionId } = request.params;
-          const apiKey = resolveExternalResumeApiKey({
-            authorization: request.headers?.authorization,
-            queryApiKey: request.query.apiKey,
-          });
+          const { kid, token } = resolveExternalResumeCredentials(request.query);
           const { resumedBy } = await api.resumeWorkflowExecutionExternallyViaGet({
-            apiKey,
+            kid,
+            token,
             executionId,
             spaceId: spaces.getSpaceId(request),
             query: request.query as Record<string, unknown>,
