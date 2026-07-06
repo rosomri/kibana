@@ -212,7 +212,10 @@ async function resolveExternalResumeContext(
     spaceId: string;
   }
 ): Promise<ResolvedExternalResumeContext> {
-  const stepExecution = await workflowsService.getStepExecution({ executionId, id: stepId }, spaceId);
+  const stepExecution = await workflowsService.getStepExecution(
+    { executionId, id: stepId },
+    spaceId
+  );
   if (!stepExecution) {
     throw new ExternalResumeError('Workflow execution not found', 404);
   }
