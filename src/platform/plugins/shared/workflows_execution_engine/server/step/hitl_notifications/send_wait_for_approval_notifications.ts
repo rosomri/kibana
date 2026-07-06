@@ -23,16 +23,16 @@ export function buildWaitForApprovalResumeLinks({
   kibanaUrl,
   spaceId,
   executionId,
-  kid,
+  stepId,
   token,
 }: {
   kibanaUrl: string;
   spaceId: string;
   executionId: string;
-  kid: string;
+  stepId: string;
   token: string;
 }): WaitForApprovalResumeLinks {
-  const baseParams = { kibanaUrl, spaceId, executionId, kid, token };
+  const baseParams = { kibanaUrl, spaceId, executionId, stepId, token };
 
   return {
     approveUrl: buildExternalResumeUrl({ ...baseParams, approved: true }),

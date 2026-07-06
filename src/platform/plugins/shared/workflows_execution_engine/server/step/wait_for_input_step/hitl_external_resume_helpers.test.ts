@@ -7,46 +7,81 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { mintHitlExternalResumeApiKey } from './hitl_external_resume_helpers';
+import { HITL_TOKEN_EXPIRES_AT_INPUT_FIELD, HITL_TOKEN_HASH_INPUT_FIELD } from '@kbn/workflows';
+import {
+  invalidateHitlExternalResumeTokenIfPresent,
+  mintHitlExternalResumeToken,
+  removeHitlExternalResumeTokenFields,
+} from './hitl_external_resume_helpers';
 import type { StepExecutionRuntime } from '../../workflow_context_manager/step_execution_runtime';
 
-jest.mock('@kbn/workflows/server', () => ({
-  ...jest.requireActual('@kbn/workflows/server'),
-  createExternalResumeApiKey: jest.fn().mockResolvedValue({
-    id: 'api-key-id',
-    encoded: 'encoded-api-key',
-  }),
-}));
+describe('mintHitlExternalResumeToken', () => {
+  it('converts workflow timeout to a token expiration timestamp', () => {
+    jest.useFakeTimers();
+    try {
+      jest.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
 
-const mockCreateExternalResumeApiKey = jest.requireMock('@kbn/workflows/server')
-  .createExternalResumeApiKey as jest.Mock;
+      const token = mintHitlExternalResumeToken({
+        stepExecutionRuntime: {} as StepExecutionRuntime,
+        execution: { id: 'execution-id', workflowId: 'workflow-id' } as Parameters<
+          typeof mintHitlExternalResumeToken
+        >[0]['execution'],
+        timeout: '2w',
+      });
 
-describe('mintHitlExternalResumeApiKey', () => {
-  beforeEach(() => {
-    mockCreateExternalResumeApiKey.mockClear();
+      expect(token.token).toHaveLength(64);
+      expect(token.tokenHash).toHaveLength(64);
+      expect(token.expiresAt).toBe('2026-01-15T00:00:00.000Z');
+    } finally {
+      jest.useRealTimers();
+    }
   });
+});
 
-  it('converts workflow timeout to an Elasticsearch-compatible expiration', async () => {
+describe('removeHitlExternalResumeTokenFields', () => {
+  it('removes token metadata while preserving user input fields', () => {
+    expect(
+      removeHitlExternalResumeTokenFields({
+        message: 'Please respond',
+        schema: { type: 'object' },
+        [HITL_TOKEN_HASH_INPUT_FIELD]: 'hash',
+        [HITL_TOKEN_EXPIRES_AT_INPUT_FIELD]: '2999-01-01T00:00:00.000Z',
+      })
+    ).toEqual({
+      message: 'Please respond',
+      schema: { type: 'object' },
+    });
+  });
+});
+
+describe('invalidateHitlExternalResumeTokenIfPresent', () => {
+  it('clears token metadata from the current step input', () => {
+    const setInput = jest.fn();
     const stepExecutionRuntime = {
-      contextManager: {
-        getEsClientAsUser: jest.fn().mockReturnValue({}),
+      stepExecution: {
+        input: {
+          message: 'Please respond',
+          [HITL_TOKEN_HASH_INPUT_FIELD]: 'hash',
+          [HITL_TOKEN_EXPIRES_AT_INPUT_FIELD]: '2999-01-01T00:00:00.000Z',
+        },
       },
+      setInput,
     } as unknown as StepExecutionRuntime;
 
-    await mintHitlExternalResumeApiKey({
-      stepExecutionRuntime,
-      execution: { id: 'execution-id', workflowId: 'workflow-id' } as Parameters<
-        typeof mintHitlExternalResumeApiKey
-      >[0]['execution'],
-      stepId: 'step-id',
-      spaceId: 'default',
-      timeout: '2w',
-    });
+    invalidateHitlExternalResumeTokenIfPresent(stepExecutionRuntime);
 
-    expect(mockCreateExternalResumeApiKey).toHaveBeenCalledWith(
-      expect.objectContaining({
-        expiration: '1209600000ms',
-      })
-    );
+    expect(setInput).toHaveBeenCalledWith({ message: 'Please respond' });
+  });
+
+  it('does nothing when token metadata is absent', () => {
+    const setInput = jest.fn();
+    const stepExecutionRuntime = {
+      stepExecution: { input: { message: 'Please respond' } },
+      setInput,
+    } as unknown as StepExecutionRuntime;
+
+    invalidateHitlExternalResumeTokenIfPresent(stepExecutionRuntime);
+
+    expect(setInput).not.toHaveBeenCalled();
   });
 });

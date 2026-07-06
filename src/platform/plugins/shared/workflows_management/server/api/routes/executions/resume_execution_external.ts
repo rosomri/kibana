@@ -20,8 +20,12 @@ import {
 import { resolveExternalResumeCredentials } from '../../external_resume/external_resume_service';
 import type { RouteDependencies } from '../types';
 import { API_VERSION } from '../utils/route_constants';
-import { executionIdParamSchema } from '../utils/schemas';
 import { withAvailabilityCheck } from '../utils/with_availability_check';
+
+const externalResumeParamsSchema = schema.object({
+  executionId: schema.string({ meta: { description: 'Workflow execution ID' } }),
+  stepId: schema.string({ meta: { description: 'Workflow step execution ID' } }),
+});
 
 export function registerExternalResumeExecutionPostRoute(deps: RouteDependencies) {
   const { router, api, spaces, audit, logger } = deps;
@@ -33,7 +37,7 @@ export function registerExternalResumeExecutionPostRoute(deps: RouteDependencies
       security: EXTERNAL_RESUME_SECURITY,
       summary: 'Submit external input for a paused workflow execution',
       description:
-        'Resume a workflow execution that is paused and waiting for external input. Submit input values as a JSON request body, authenticated with kid and token query parameters. Returns an HTML confirmation page.',
+        'Resume a workflow execution that is paused and waiting for external input. Submit input values as a JSON request body, authenticated with a token query parameter. Returns an HTML confirmation page.',
       options: EXTERNAL_RESUME_POST_ROUTE_OPTIONS,
     })
     .addVersion(
@@ -45,12 +49,8 @@ export function registerExternalResumeExecutionPostRoute(deps: RouteDependencies
         },
         validate: {
           request: {
-            params: executionIdParamSchema,
+            params: externalResumeParamsSchema,
             query: schema.object({
-              kid: schema.string({
-                maxLength: 64,
-                meta: { description: 'The API key ID created when the workflow execution paused.' },
-              }),
               token: schema.string({
                 maxLength: 128,
                 meta: { description: 'The resume token authenticating this request.' },
@@ -62,13 +62,13 @@ export function registerExternalResumeExecutionPostRoute(deps: RouteDependencies
       },
       withAvailabilityCheck(async (context, request, response) => {
         try {
-          const { executionId } = request.params;
-          const { kid, token } = resolveExternalResumeCredentials(request.query);
+          const { executionId, stepId } = request.params;
+          const { token } = resolveExternalResumeCredentials(request.query);
           const spaceId = spaces.getSpaceId(request);
           const { resumedBy } = await api.resumeWorkflowExecutionExternallyWithInput({
-            kid,
             token,
             executionId,
+            stepId,
             spaceId,
             input: request.body as Record<string, unknown>,
           });
@@ -112,13 +112,9 @@ export function registerExternalResumeExecutionGetRoute(deps: RouteDependencies)
         },
         validate: {
           request: {
-            params: executionIdParamSchema,
+            params: externalResumeParamsSchema,
             query: schema.object(
               {
-                kid: schema.string({
-                  maxLength: 64,
-                  meta: { description: 'The API key ID created when the workflow execution paused.' },
-                }),
                 token: schema.string({
                   maxLength: 128,
                   meta: { description: 'The resume token authenticating this request.' },
@@ -142,12 +138,12 @@ export function registerExternalResumeExecutionGetRoute(deps: RouteDependencies)
       },
       withAvailabilityCheck(async (context, request, response) => {
         try {
-          const { executionId } = request.params;
-          const { kid, token } = resolveExternalResumeCredentials(request.query);
+          const { executionId, stepId } = request.params;
+          const { token } = resolveExternalResumeCredentials(request.query);
           const { resumedBy } = await api.resumeWorkflowExecutionExternallyViaGet({
-            kid,
             token,
             executionId,
+            stepId,
             spaceId: spaces.getSpaceId(request),
             query: request.query as Record<string, unknown>,
           });

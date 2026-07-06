@@ -13,21 +13,23 @@ export function buildExternalResumeUrl({
   kibanaUrl,
   spaceId,
   executionId,
-  kid,
+  stepId,
   token,
   approved,
 }: {
   kibanaUrl: string;
   spaceId: string;
   executionId: string;
-  kid: string;
+  stepId: string;
   token: string;
   approved?: boolean;
 }): string {
   const spacePrefix = spaceId === 'default' ? '' : `/s/${spaceId}`;
-  const path = EXTERNAL_RESUME_API_PATH.replace('{executionId}', executionId);
+  const path = EXTERNAL_RESUME_API_PATH.replace('{executionId}', executionId).replace(
+    '{stepId}',
+    stepId
+  );
   const url = new URL(`${kibanaUrl}${spacePrefix}${path}`);
-  url.searchParams.set('kid', kid);
   url.searchParams.set('token', token);
   if (approved !== undefined) {
     url.searchParams.set('approved', String(approved));

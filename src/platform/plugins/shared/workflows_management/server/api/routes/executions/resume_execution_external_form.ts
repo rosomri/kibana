@@ -18,8 +18,12 @@ import {
 } from './external_resume_route_helpers';
 import type { RouteDependencies } from '../types';
 import { API_VERSION } from '../utils/route_constants';
-import { executionIdParamSchema } from '../utils/schemas';
 import { withAvailabilityCheck } from '../utils/with_availability_check';
+
+const externalResumeFormParamsSchema = schema.object({
+  executionId: schema.string({ meta: { description: 'Workflow execution ID' } }),
+  stepId: schema.string({ meta: { description: 'Workflow step execution ID' } }),
+});
 
 export function registerExternalResumeFormRoute(deps: RouteDependencies) {
   const { router, api, spaces, logger } = deps;
@@ -43,12 +47,8 @@ export function registerExternalResumeFormRoute(deps: RouteDependencies) {
         },
         validate: {
           request: {
-            params: executionIdParamSchema,
+            params: externalResumeFormParamsSchema,
             query: schema.object({
-              kid: schema.string({
-                maxLength: 64,
-                meta: { description: 'The API key ID created when the workflow execution paused.' },
-              }),
               token: schema.string({
                 maxLength: 128,
                 meta: { description: 'The resume token authenticating this request.' },
@@ -59,12 +59,12 @@ export function registerExternalResumeFormRoute(deps: RouteDependencies) {
       },
       withAvailabilityCheck(async (context, request, response) => {
         try {
-          const { executionId } = request.params;
-          const { kid, token } = request.query;
+          const { executionId, stepId } = request.params;
+          const { token } = request.query;
           const body = await api.getExternalResumeFormPage({
-            kid,
             token,
             executionId,
+            stepId,
             spaceId: spaces.getSpaceId(request),
             basePath: request.basePath,
           });

@@ -23,12 +23,12 @@ describe('handleExternalResumeError', () => {
   it('returns curated ExternalResumeError messages with their status codes', () => {
     const result = handleExternalResumeError(
       response as any,
-      new ExternalResumeError('Invalid external resume API key', 401)
+      new ExternalResumeError('Invalid resume token', 401)
     );
 
     expect(result).toMatchObject({
       statusCode: 401,
-      body: expect.stringContaining('Invalid external resume API key'),
+      body: expect.stringContaining('Invalid resume token'),
     });
   });
 
