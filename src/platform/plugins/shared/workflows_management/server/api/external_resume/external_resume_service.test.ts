@@ -131,6 +131,146 @@ describe('external resume service', () => {
     );
   });
 
+  it('rejects bare waitForInput GET resume with no schema field query params', async () => {
+    await expect(
+      resumeWorkflowExecutionExternallyViaGet(workflowsService, {
+        executionId: 'exec-1',
+        stepId: 'step-exec-1',
+        spaceId: 'default',
+        token: TOKEN,
+        query: { token: TOKEN },
+      })
+    ).rejects.toEqual(
+      new ExternalResumeError(
+        'Query-param resume requires at least one schema field; use the form link instead.',
+        400
+      )
+    );
+
+    const engine = await workflowsService.getWorkflowsExecutionEngine();
+    expect(engine.resumeWorkflowExecution).not.toHaveBeenCalled();
+  });
+
+  it('rejects waitForInput GET resume when required schema fields are missing', async () => {
+    workflowsService.getStepExecution.mockResolvedValue(
+      createStepExecution({
+        input: {
+          [HITL_TOKEN_HASH_INPUT_FIELD]: TOKEN_HASH,
+          [HITL_TOKEN_EXPIRES_AT_INPUT_FIELD]: FUTURE_DATE,
+          schema: {
+            type: 'object',
+            properties: {
+              severity: { type: 'string' },
+            },
+            required: ['severity'],
+          },
+        },
+      })
+    );
+
+    await expect(
+      resumeWorkflowExecutionExternallyViaGet(workflowsService, {
+        executionId: 'exec-1',
+        stepId: 'step-exec-1',
+        spaceId: 'default',
+        token: TOKEN,
+        query: { token: TOKEN, approved: 'true' },
+      })
+    ).rejects.toThrow(ExternalResumeError);
+  });
+
+  it('resumes a waiting waitForInput step via GET query params', async () => {
+    await resumeWorkflowExecutionExternallyViaGet(workflowsService, {
+      executionId: 'exec-1',
+      stepId: 'step-exec-1',
+      spaceId: 'default',
+      token: TOKEN,
+      query: { token: TOKEN, severity: 'high' },
+    });
+
+    const engine = await workflowsService.getWorkflowsExecutionEngine();
+    expect(workflowsService.claimHitlStepForExternalResume).toHaveBeenCalledWith(
+      'step-exec-1',
+      'external_resume:step-exec-1',
+      'default'
+    );
+    expect(engine.resumeWorkflowExecution).toHaveBeenCalledWith(
+      'exec-1',
+      'default',
+      { severity: 'high' },
+      undefined,
+      { resumedBy: 'external_resume:step-exec-1' }
+    );
+  });
+
+  it('preserves repeated query params for array schema fields on GET resume', async () => {
+    workflowsService.getStepExecution.mockResolvedValue(
+      createStepExecution({
+        input: {
+          [HITL_TOKEN_HASH_INPUT_FIELD]: TOKEN_HASH,
+          [HITL_TOKEN_EXPIRES_AT_INPUT_FIELD]: FUTURE_DATE,
+          schema: {
+            type: 'object',
+            properties: {
+              tactics: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                  enum: ['initial_access', 'execution', 'persistence'],
+                },
+              },
+            },
+            required: ['tactics'],
+          },
+        },
+      })
+    );
+
+    await resumeWorkflowExecutionExternallyViaGet(workflowsService, {
+      executionId: 'exec-1',
+      stepId: 'step-exec-1',
+      spaceId: 'default',
+      token: TOKEN,
+      query: {
+        token: TOKEN,
+        tactics: ['initial_access', 'execution'],
+      },
+    });
+
+    const engine = await workflowsService.getWorkflowsExecutionEngine();
+    expect(engine.resumeWorkflowExecution).toHaveBeenCalledWith(
+      'exec-1',
+      'default',
+      { tactics: ['initial_access', 'execution'] },
+      undefined,
+      { resumedBy: 'external_resume:step-exec-1' }
+    );
+  });
+
+  it('ignores non-schema query params on waitForInput GET resume', async () => {
+    await resumeWorkflowExecutionExternallyViaGet(workflowsService, {
+      executionId: 'exec-1',
+      stepId: 'step-exec-1',
+      spaceId: 'default',
+      token: TOKEN,
+      query: {
+        token: TOKEN,
+        severity: 'high',
+        approved: 'true',
+        injected: 'value',
+      },
+    });
+
+    const engine = await workflowsService.getWorkflowsExecutionEngine();
+    expect(engine.resumeWorkflowExecution).toHaveBeenCalledWith(
+      'exec-1',
+      'default',
+      { severity: 'high' },
+      undefined,
+      { resumedBy: 'external_resume:step-exec-1' }
+    );
+  });
+
   it('rejects an invalid token', async () => {
     await expect(
       resumeWorkflowExecutionExternallyWithInput(workflowsService, {

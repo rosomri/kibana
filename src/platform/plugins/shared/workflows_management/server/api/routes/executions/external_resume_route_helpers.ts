@@ -19,11 +19,11 @@ import { AVAILABILITY, OAS_TAG } from '../utils/route_constants';
 export const EXTERNAL_RESUME_SECURITY = {
   authc: {
     enabled: false,
-    reason: 'External resume uses a short-lived API key token instead of a Kibana session.',
+    reason: 'External resume uses a short-lived resume token instead of a Kibana session.',
   },
   authz: {
     enabled: false,
-    reason: 'External resume authorizes by matching the API key metadata to the execution.',
+    reason: 'External resume authorizes by matching the resume token hash to the step execution.',
   },
 } as const;
 
