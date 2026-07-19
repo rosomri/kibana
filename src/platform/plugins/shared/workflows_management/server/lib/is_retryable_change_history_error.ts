@@ -44,5 +44,18 @@ export const isRetryableChangeHistoryError = (error: unknown): boolean => {
   }
 
   const name = (error as { name?: string }).name;
-  return name != null && RETRYABLE_ERROR_NAMES.has(name);
+  if (name != null && RETRYABLE_ERROR_NAMES.has(name)) {
+    return true;
+  }
+
+  // ChangeHistoryClient.logBulk wraps the original Elasticsearch error in a new Error
+  // instance (to add context), which strips the statusCode from the top-level object.
+  // Fall through to check the chained cause so transient ES errors (e.g. 503) are still
+  // retried even when the immediate thrown value is a plain Error wrapper.
+  const cause = (error as { cause?: unknown }).cause;
+  if (cause != null && cause !== error) {
+    return isRetryableChangeHistoryError(cause);
+  }
+
+  return false;
 };
