@@ -221,6 +221,10 @@ describe('kibana tool', () => {
       expect(resources.logger.error).toHaveBeenCalledWith(
         expect.stringContaining('Error calling Kibana API')
       );
+      // Verify the error message is properly serialized (not '[object Object]')
+      expect(resources.logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('connect ECONNREFUSED')
+      );
     });
 
     it('does not fall back when the request fails with a non-network error', async () => {
@@ -244,6 +248,10 @@ describe('kibana tool', () => {
       expect(mockedAxios).toHaveBeenCalledTimes(2);
       expect(resources.logger.error).toHaveBeenCalledWith(
         expect.stringContaining('Error calling Kibana API via local fallback')
+      );
+      // Verify the error message is properly serialized (not '[object Object]')
+      expect(resources.logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('ECONNREFUSED on fallback')
       );
     });
 
