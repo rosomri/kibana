@@ -175,7 +175,7 @@ To learn more about the Agent Builder MCP server, refer to the [MCP documentatio
           return response.customError({
             statusCode: 500,
             body: {
-              message: `Internal server error: ${error}`,
+              message: `Internal server error: ${error instanceof Error ? error.message : String(error)}`,
               attributes: {
                 code: ErrorCode.InternalError,
               },
