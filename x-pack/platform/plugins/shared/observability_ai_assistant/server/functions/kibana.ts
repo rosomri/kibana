@@ -155,7 +155,7 @@ export function registerKibanaFunction({
         const localUrl = isEnotfoundError(e) ? getLocalServerUrl() : undefined;
 
         if (!localUrl) {
-          logger.error(`Error calling Kibana API: ${method} ${primaryUrl}. Failed with ${e}`);
+          logger.error(`Error calling Kibana API: ${method} ${primaryUrl}. Failed with ${e.message}`);
           throw e;
         }
 
@@ -170,7 +170,7 @@ export function registerKibanaFunction({
         } catch (retryError) {
           logger.error(
             `Error calling Kibana API via local fallback: ${method} ${fallbackUrl}. ` +
-              `Failed with ${retryError}`
+              `Failed with ${retryError.message}`
           );
           throw retryError;
         }
