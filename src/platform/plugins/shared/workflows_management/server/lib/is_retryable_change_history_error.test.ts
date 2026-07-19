@@ -20,15 +20,25 @@ describe('isRetryableChangeHistoryError', () => {
     expect(isRetryableChangeHistoryError({ statusCode: 408 })).toBe(true);
   });
 
+  it('returns true for 404 (index_not_found_exception during data-stream bootstrap at startup)', () => {
+    expect(isRetryableChangeHistoryError({ statusCode: 404 })).toBe(true);
+    expect(isRetryableChangeHistoryError({ meta: { statusCode: 404 } })).toBe(true);
+  });
+
   it('returns false for non-retryable 4xx status codes', () => {
     expect(isRetryableChangeHistoryError({ statusCode: 400 })).toBe(false);
-    expect(isRetryableChangeHistoryError({ statusCode: 404 })).toBe(false);
+    expect(isRetryableChangeHistoryError({ statusCode: 401 })).toBe(false);
+    expect(isRetryableChangeHistoryError({ statusCode: 403 })).toBe(false);
   });
 
   it('returns true for known transient connection error names', () => {
     expect(isRetryableChangeHistoryError({ name: 'ConnectionError' })).toBe(true);
     expect(isRetryableChangeHistoryError({ name: 'NoLivingConnectionsError' })).toBe(true);
     expect(isRetryableChangeHistoryError({ name: 'TimeoutError' })).toBe(true);
+  });
+
+  it('returns true for RequestAbortedError (request cancelled mid-flight during startup load)', () => {
+    expect(isRetryableChangeHistoryError({ name: 'RequestAbortedError' })).toBe(true);
   });
 
   it('returns false for unknown errors', () => {
