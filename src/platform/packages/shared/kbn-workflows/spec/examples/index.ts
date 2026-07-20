@@ -134,6 +134,15 @@ export const WORKFLOW_EXAMPLES: WorkflowExampleEntry[] = [
     tags: ['alert', 'agent-builder', 'ai', 'console'],
     filename: 'invoke_agent.yml',
   },
+  {
+    id: 'joke_bot',
+    name: 'Elastic Workflow Joke Bot',
+    description:
+      'Runs on a 1-minute schedule, uses an AI agent to generate a witty joke about Elastic Workflows vs competitors, and posts it to Slack',
+    category: 'examples',
+    tags: ['scheduled', 'ai', 'slack', 'agent-builder'],
+    filename: 'joke_bot.yaml',
+  },
 ];
 
 /** Allowlisted example IDs — prevents path traversal attacks when reading files */
