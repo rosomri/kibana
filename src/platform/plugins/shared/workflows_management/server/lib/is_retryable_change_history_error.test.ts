@@ -35,4 +35,24 @@ describe('isRetryableChangeHistoryError', () => {
     expect(isRetryableChangeHistoryError(new Error('boom'))).toBe(false);
     expect(isRetryableChangeHistoryError(null)).toBe(false);
   });
+
+  it('returns true when the error cause has a retryable status code', () => {
+    // ChangeHistoryClient.logBulk wraps ES errors: new Error('...', { cause: originalEsError })
+    // The wrapper has no statusCode, but the cause does.
+    const cause = { statusCode: 503 };
+    const wrapped = Object.assign(new Error('Error saving change history'), { cause });
+    expect(isRetryableChangeHistoryError(wrapped)).toBe(true);
+  });
+
+  it('returns false when the error cause has a non-retryable status code', () => {
+    const cause = { statusCode: 400 };
+    const wrapped = Object.assign(new Error('Error saving change history'), { cause });
+    expect(isRetryableChangeHistoryError(wrapped)).toBe(false);
+  });
+
+  it('returns true when the error cause has a retryable error name', () => {
+    const cause = { name: 'ConnectionError' };
+    const wrapped = Object.assign(new Error('Error saving change history'), { cause });
+    expect(isRetryableChangeHistoryError(wrapped)).toBe(true);
+  });
 });
