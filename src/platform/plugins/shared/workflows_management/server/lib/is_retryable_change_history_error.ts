@@ -7,13 +7,33 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+const RETRYABLE_STATUS_CODES = new Set([
+  408,
+  429,
+  500,
+  502,
+  503,
+  504,
+  /**
+   * 404 is retryable because during plugin startup the `.kibana_change_history`
+   * data stream may not yet be fully visible to all ES nodes when the first
+   * `install` write arrives (transient state during data-stream bootstrap).
+   * Retrying allows the cluster to finish propagating the data-stream creation.
+   */
+  404,
+]);
 
 const RETRYABLE_ERROR_NAMES = new Set([
   'ConnectionError',
   'NoLivingConnectionsError',
   'TimeoutError',
   'RequestTimeout',
+  /**
+   * RequestAbortedError is thrown by the ES client when a request is cancelled
+   * mid-flight (e.g. during heavy startup load or node drain). It is transient
+   * and safe to retry.
+   */
+  'RequestAbortedError',
 ]);
 
 const getStatusCode = (error: unknown): number | undefined => {
