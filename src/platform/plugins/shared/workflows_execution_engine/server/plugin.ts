@@ -59,6 +59,10 @@ import { getAuthenticatedUser } from './lib/get_user';
 import { checkWorkflowAccess, hasWorkflowAccess } from './lib/has_workflow_access';
 import { logWorkflowTaskFailure } from './lib/log_workflow_task_failure';
 import {
+  isExecutionFinished,
+  releaseFinishedExecutionTasks,
+} from './lib/release_finished_execution_tasks';
+import {
   failExecutionMissingIdentity,
   markScheduledExecutionFailedAfterTaskError,
   resolveExhaustedWorkflowRunTask,
@@ -460,6 +464,8 @@ export class WorkflowsExecutionEnginePlugin
                   maxAttempts: WORKFLOW_RUN_TASK_MAX_ATTEMPTS,
                   error,
                   logger,
+                  workflowTaskManager: new WorkflowTaskManager(pluginsStart.taskManager),
+                  currentTaskId: taskInstance.id,
                 });
                 if (aborted) {
                   stampWorkflowTaskRunEventFields(setCustomTaskRunEventFields, {
@@ -568,7 +574,30 @@ export class WorkflowsExecutionEnginePlugin
               const { workflowExecutionRepository, stepExecutionRepository } =
                 this.createScopedRepositories();
 
-              if (taskInstance.id !== getWorkflowWakeTaskId(workflowRunId)) {
+              const retainedWake = taskInstance.id === getWorkflowWakeTaskId(workflowRunId);
+              const loadedExecution = await workflowExecutionRepository.getWorkflowExecutionById(
+                workflowRunId,
+                spaceId
+              );
+              // Checked before any ensureScheduled: a late timer must not grant new API keys.
+              if (
+                (retainedWake && !loadedExecution) ||
+                (loadedExecution && isExecutionFinished(loadedExecution))
+              ) {
+                await releaseFinishedExecutionTasks({
+                  workflowTaskManager: new WorkflowTaskManager(pluginsStart.taskManager),
+                  executionId: workflowRunId,
+                  exceptTaskId: taskInstance.id,
+                  logger,
+                });
+                return;
+              }
+              // Pending identity-failure cleanup is retried by the task that hit it.
+              if (retainedWake && loadedExecution && isTerminalStatus(loadedExecution.status)) {
+                return;
+              }
+
+              if (!retainedWake) {
                 await new WorkflowTaskManager(pluginsStart.taskManager).ensureWakeTask({
                   executionId: workflowRunId,
                   spaceId,
@@ -578,23 +607,10 @@ export class WorkflowsExecutionEnginePlugin
               }
 
               if (taskInstance.id !== getWorkflowImmediateResumeTaskId(workflowRunId)) {
-                const retainedWake = taskInstance.id === getWorkflowWakeTaskId(workflowRunId);
-                let isUserInteractive = false;
-                if (retainedWake) {
-                  const execution = await workflowExecutionRepository.getWorkflowExecutionById(
-                    workflowRunId,
-                    spaceId
-                  );
-                  if (!execution || isTerminalStatus(execution.status)) {
-                    await new WorkflowTaskManager(
-                      pluginsStart.taskManager
-                    ).removeParkedImmediateResume(workflowRunId);
-                    return;
-                  }
-                  isUserInteractive =
-                    execution.context?.pendingInteractiveResume === true &&
-                    execution.context?.resumeInput != null;
-                }
+                const isUserInteractive =
+                  retainedWake &&
+                  loadedExecution?.context?.pendingInteractiveResume === true &&
+                  loadedExecution?.context?.resumeInput != null;
                 const accepted = await new WorkflowTaskManager(
                   pluginsStart.taskManager
                 ).tryRunImmediateResume({
@@ -738,6 +754,8 @@ export class WorkflowsExecutionEnginePlugin
                   maxAttempts: WORKFLOW_RESUME_TASK_MAX_ATTEMPTS,
                   error,
                   logger,
+                  workflowTaskManager: new WorkflowTaskManager(pluginsStart.taskManager),
+                  currentTaskId: taskInstance.id,
                 });
                 if (aborted) {
                   stampWorkflowTaskRunEventFields(setCustomTaskRunEventFields, {
@@ -934,6 +952,8 @@ export class WorkflowsExecutionEnginePlugin
                     createSkippedForInFlightDuplicates: !deferInFlightDuplicatesToConcurrency,
                     hasActiveTaskForExecution: (executionId) =>
                       workflowTaskManager.hasActiveTaskForExecution(executionId),
+                    releaseExecutionTasks: (executionId) =>
+                      releaseFinishedExecutionTasks({ workflowTaskManager, executionId, logger }),
                   }
                 );
                 if (skipResult.skipped) {

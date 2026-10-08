@@ -34,6 +34,7 @@ import {
 
 import { StepExecutionRepository } from '../repositories/step_execution_repository';
 import { WorkflowExecutionRepository } from '../repositories/workflow_execution_repository';
+import type { WorkflowTaskManager } from '../workflow_task_manager/workflow_task_manager';
 
 const createRecoveryTestHarness = () => {
   const workflowExecutionsDataClient = createMockWorkflowDataClient();
@@ -555,13 +556,16 @@ describe('resolveExhaustedWorkflowRunTask', () => {
     });
   });
 
-  it('does not update when execution is already terminal on last attempt', async () => {
+  it('removes the other tasks of the execution after marking it FAILED', async () => {
     mockExecutionLookup(workflowExecutionsDataClient, {
       id: 'run-1',
       spaceId: 'default',
       workflowId: 'w',
-      status: ExecutionStatus.COMPLETED,
+      status: ExecutionStatus.WAITING,
     } as EsWorkflowExecution);
+    const workflowTaskManager = {
+      removeTasksForExecution: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<WorkflowTaskManager>;
 
     await resolveExhaustedWorkflowRunTask({
       workflowExecutionRepository: repository,
@@ -572,9 +576,43 @@ describe('resolveExhaustedWorkflowRunTask', () => {
       maxAttempts: 3,
       error: new Error('handler blew up'),
       logger,
+      workflowTaskManager,
+      currentTaskId: 'current-task',
+    });
+
+    expect(workflowTaskManager.removeTasksForExecution).toHaveBeenCalledWith('run-1', {
+      exceptTaskId: 'current-task',
+    });
+    expect(workflowExecutionsDataClient.bulk.mock.invocationCallOrder[0]).toBeLessThan(
+      workflowTaskManager.removeTasksForExecution.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('does not update when execution is already terminal on last attempt', async () => {
+    mockExecutionLookup(workflowExecutionsDataClient, {
+      id: 'run-1',
+      spaceId: 'default',
+      workflowId: 'w',
+      status: ExecutionStatus.COMPLETED,
+    } as EsWorkflowExecution);
+    const workflowTaskManager = {
+      removeTasksForExecution: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<WorkflowTaskManager>;
+
+    await resolveExhaustedWorkflowRunTask({
+      workflowExecutionRepository: repository,
+      stepExecutionRepository,
+      workflowRunId: 'run-1',
+      spaceId: 'default',
+      taskAttempts: 3,
+      maxAttempts: 3,
+      error: new Error('handler blew up'),
+      logger,
+      workflowTaskManager,
     });
 
     expect(workflowExecutionsDataClient.bulk).not.toHaveBeenCalled();
+    expect(workflowTaskManager.removeTasksForExecution).not.toHaveBeenCalled();
   });
 
   it('does not update when execution document is missing on last attempt', async () => {

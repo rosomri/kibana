@@ -38,6 +38,10 @@ export interface CheckExistingScheduledExecutionOptions {
    * Optional: whether TM still has idle/claiming/running work for this execution scope.
    */
   hasActiveTaskForExecution?: (executionId: string) => Promise<boolean>;
+  /**
+   * Optional: best-effort removal of the remaining TM tasks of an execution this check failed.
+   */
+  releaseExecutionTasks?: (executionId: string) => Promise<void>;
 }
 
 /**
@@ -80,7 +84,11 @@ export async function checkAndSkipIfExistingScheduledExecution(
   logger: Logger,
   options: CheckExistingScheduledExecutionOptions = {}
 ): Promise<CheckAndSkipScheduledExecutionResult> {
-  const { createSkippedForInFlightDuplicates = true, hasActiveTaskForExecution } = options;
+  const {
+    createSkippedForInFlightDuplicates = true,
+    hasActiveTaskForExecution,
+    releaseExecutionTasks,
+  } = options;
 
   // Check if there's already a scheduled workflow execution in non-terminal state
   const runningExecutions = await workflowExecutionRepository.getRunningExecutionsByWorkflowId(
@@ -131,6 +139,7 @@ export async function checkAndSkipIfExistingScheduledExecution(
           message: taskRecoveryMessages.scheduledStale,
         }
       );
+      await releaseExecutionTasks?.(existingExecution.id);
       return { skipped: false };
     }
 

@@ -15,8 +15,10 @@ import {
   MISSING_EXECUTION_IDENTITY_ERROR_TYPE,
   MISSING_EXECUTION_IDENTITY_MESSAGE,
 } from './execution_identity';
+import { releaseFinishedExecutionTasks } from './release_finished_execution_tasks';
 import type { StepExecutionRepository } from '../repositories/step_execution_repository';
 import type { WorkflowExecutionRepository } from '../repositories/workflow_execution_repository';
+import type { WorkflowTaskManager } from '../workflow_task_manager/workflow_task_manager';
 
 /** Unified error type for executions abandoned after Kibana/Task Manager interruption (fail-fast recovery). */
 export const TASK_RECOVERY_ERROR_TYPE = 'TaskRecoveryError' as const;
@@ -270,6 +272,8 @@ export async function resolveExhaustedWorkflowRunTask({
   maxAttempts,
   error,
   logger,
+  workflowTaskManager,
+  currentTaskId,
 }: {
   workflowExecutionRepository: WorkflowExecutionRepository;
   stepExecutionRepository: StepExecutionRepository;
@@ -279,6 +283,8 @@ export async function resolveExhaustedWorkflowRunTask({
   maxAttempts: number;
   error: unknown;
   logger: Logger;
+  workflowTaskManager?: WorkflowTaskManager;
+  currentTaskId?: string;
 }): Promise<void> {
   if (taskAttempts < maxAttempts) {
     return;
@@ -304,6 +310,12 @@ export async function resolveExhaustedWorkflowRunTask({
           message: buildTaskAttemptsExhaustedMessage(lastMessage),
         }
       );
+      await releaseFinishedExecutionTasks({
+        workflowTaskManager,
+        executionId: workflowRunId,
+        exceptTaskId: currentTaskId,
+        logger,
+      });
     }
   } catch (markFailedErr) {
     logger.error(

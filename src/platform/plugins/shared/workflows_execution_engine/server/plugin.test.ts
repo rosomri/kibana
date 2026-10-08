@@ -443,6 +443,47 @@ describe('checkAndSkipIfExistingScheduledExecution', () => {
       expect(workflowExecutionsDataClient.bulk).toHaveBeenCalledTimes(1);
     });
 
+    it('releases the tasks of a stale execution after marking it FAILED', async () => {
+      workflowExecutionsDataClient.search.mockResolvedValue({
+        hits: {
+          hits: [
+            {
+              _source: {
+                id: 'stale-execution-id',
+                workflowId: workflow.id,
+                spaceId,
+                status: ExecutionStatus.WAITING,
+                triggeredBy: 'scheduled',
+                taskRunAt: baseRunAt.toISOString(),
+              },
+            },
+          ],
+          total: { value: 1, relation: 'eq' },
+        },
+      } as any);
+      workflowExecutionsDataClient.bulk.mockResolvedValue({
+        errors: false,
+        items: [{ id: 'mock-id', index: '.mock' }],
+      } as any);
+      const releaseExecutionTasks = jest.fn().mockResolvedValue(undefined);
+
+      const result = await checkAndSkipIfExistingScheduledExecution(
+        workflow,
+        spaceId,
+        workflowExecutionRepository,
+        stepExecutionRepository,
+        createMockTaskInstance({ attempts: 2 }),
+        logger,
+        { releaseExecutionTasks }
+      );
+
+      expect(result.skipped).toBe(false);
+      expect(releaseExecutionTasks).toHaveBeenCalledWith('stale-execution-id');
+      expect(workflowExecutionsDataClient.bulk.mock.invocationCallOrder[0]).toBeLessThan(
+        releaseExecutionTasks.mock.invocationCallOrder[0]
+      );
+    });
+
     it('should skip without failing when stale execution is waiting_for_input', async () => {
       const matchingRunAt = baseRunAt.toISOString();
       const existingExecution = {

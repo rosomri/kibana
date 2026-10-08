@@ -14,6 +14,7 @@ import {
   isSyncParentInvocation,
   isTerminalStatus,
 } from '@kbn/workflows';
+import { releaseFinishedExecutionTasks } from '../lib/release_finished_execution_tasks';
 import { markExecutionFailedTaskRecovery, TASK_RECOVERY_ERROR_TYPE } from '../lib/task_recovery';
 import type { StepExecutionRepository } from '../repositories/step_execution_repository';
 import type { WorkflowExecutionRepository } from '../repositories/workflow_execution_repository';
@@ -219,6 +220,11 @@ async function failClosedIfParentStillWaiting({
       { type: TASK_RECOVERY_ERROR_TYPE, message }
     );
     logger.error(`Marked parent workflow ${parentExecId} FAILED: ${message}`);
+    await releaseFinishedExecutionTasks({
+      workflowTaskManager,
+      executionId: parentExecId,
+      logger,
+    });
 
     // The failure was written out of band, so the parent loop never runs and
     // handlePostExecutionLoop will not propagate. If this parent is itself a

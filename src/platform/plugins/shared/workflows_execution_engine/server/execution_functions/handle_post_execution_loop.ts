@@ -12,6 +12,7 @@ import type { Logger } from '@kbn/core/server';
 import { isTerminalStatus } from '@kbn/workflows';
 import { resumeSyncParentIfNeeded } from './resume_sync_parent_if_needed';
 import { drainConcurrencyQueueSlots } from '../concurrency/concurrency_queue_drainer';
+import { releaseFinishedExecutionTasks } from '../lib/release_finished_execution_tasks';
 import type { WorkflowsMeteringService } from '../metering';
 import type { StepExecutionRepository } from '../repositories/step_execution_repository';
 import type { WorkflowExecutionRepository } from '../repositories/workflow_execution_repository';
@@ -108,6 +109,14 @@ export async function handlePostExecutionLoop({
     await workflowExecutionRepository.updateWorkflowExecution({
       id: finalExecution.id,
       context: { ...finalExecution.context, serviceAccountFailureCleanupPending: false },
+    });
+  }
+
+  if (isTerminalStatus(finalExecution.status)) {
+    await releaseFinishedExecutionTasks({
+      workflowTaskManager,
+      executionId: workflowRunId,
+      logger,
     });
   }
 }

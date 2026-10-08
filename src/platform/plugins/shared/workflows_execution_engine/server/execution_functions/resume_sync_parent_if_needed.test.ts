@@ -63,6 +63,7 @@ describe('resumeSyncParentIfNeeded', () => {
       hasActiveTaskForExecution: jest.fn().mockResolvedValue(false),
       runExistingResumeTask: jest.fn().mockResolvedValue(undefined),
       scheduleAndRunImmediateResume: jest.fn().mockResolvedValue(undefined),
+      removeTasksForExecution: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<WorkflowTaskManager>;
 
     return {
@@ -168,6 +169,12 @@ describe('resumeSyncParentIfNeeded', () => {
       expect.stringContaining(`Marked parent workflow ${parentExecId} FAILED`)
     );
     expect(repos.workflowTaskManager.scheduleAndRunImmediateResume).not.toHaveBeenCalled();
+    expect(repos.workflowTaskManager.removeTasksForExecution).toHaveBeenCalledWith(parentExecId, {
+      exceptTaskId: undefined,
+    });
+    expect(mockMarkFailed.mock.invocationCallOrder[0]).toBeLessThan(
+      repos.workflowTaskManager.removeTasksForExecution.mock.invocationCallOrder[0]
+    );
   });
 
   it('wakes the grandparent after fail-closing a parent that is itself a sync child', async () => {
