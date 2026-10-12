@@ -133,6 +133,15 @@ const logWorkflowChangesForAction = async ({
 
   const maxAttempts = 1 + maxRetries;
 
+  // Workflow installation is a startup-time, best-effort operation. A transient ES
+  // connection failure at this point (e.g. NoLivingConnectionsError during Kibana
+  // initialisation on a freshly-provisioned serverless project) should not surface
+  // as a persistent ERROR alert: the primary write succeeded, and the audit-trail
+  // entry is non-critical. Logging at WARN keeps operators informed without
+  // generating pages for an inherently transient condition.
+  const finalFailureLogLevel =
+    action === WorkflowChangeHistoryAction.workflowInstall ? 'warn' : 'error';
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       await scopedChangeHistory.logBulk(changes, logOpts);
@@ -140,7 +149,7 @@ const logWorkflowChangesForAction = async ({
     } catch (error) {
       if (!isRetryableChangeHistoryError(error) || attempt >= maxAttempts) {
         const workflowIds = changes.map((change) => change.objectId).join(', ');
-        logger.error(
+        logger[finalFailureLogLevel](
           `Unable to log workflow changes for action "${action}" (workflows: ${workflowIds}) after ${attempt} attempt(s)`,
           { error }
         );

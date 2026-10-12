@@ -181,6 +181,23 @@ describe('logWorkflowChanges', () => {
     );
   });
 
+  it('logs at warn (not error) when all retries fail for the install action', async () => {
+    scopedChangeHistory.logBulk.mockRejectedValue({ statusCode: 503 });
+
+    await expect(
+      logChanges({ action: WorkflowChangeHistoryAction.workflowInstall, maxRetries: 2, retryDelayMs: 10 })
+    ).resolves.toBeUndefined();
+
+    expect(scopedChangeHistory.logBulk).toHaveBeenCalledTimes(3);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Unable to log workflow changes for action "${WorkflowChangeHistoryAction.workflowInstall}"`
+      ),
+      expect.objectContaining({ error: expect.objectContaining({ statusCode: 503 }) })
+    );
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   it('does not retry non-retryable errors', async () => {
     scopedChangeHistory.logBulk.mockRejectedValue({ statusCode: 400 });
 
