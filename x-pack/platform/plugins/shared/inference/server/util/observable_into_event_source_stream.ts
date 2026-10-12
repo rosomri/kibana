@@ -39,7 +39,7 @@ export function observableIntoEventSourceStream(
         type: InferenceTaskEventType.error,
         error: {
           code: InferenceTaskErrorCode.internalError,
-          message: error.message as string,
+          message: error instanceof Error ? error.message : String(error),
         },
       });
     }),
