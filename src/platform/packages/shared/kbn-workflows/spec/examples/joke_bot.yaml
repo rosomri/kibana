@@ -1,0 +1,22 @@
+version: "1"
+name: Elastic Workflow Joke Bot
+enabled: false
+triggers:
+  - type: scheduled
+    with:
+      every: 1m
+steps:
+  - name: generate_joke
+    type: ai.agent
+    with:
+      message: |
+        Generate a single, witty, and short joke about Elastic Workflows and its competitors
+        (such as Zapier, n8n, Make, Airflow, Prefect, Temporal, etc.).
+        The joke should be funny and relevant to workflow automation tools competing with Elastic.
+        Keep it punchy — one or two lines max. Return only the joke text, nothing else.
+  - name: send_joke_to_slack
+    type: slack2.sendMessage
+    with:
+      channel: C0BFFNR5D7C
+      text: "{{ steps.generate_joke.output.message }}"
+    connector-id: rosnersandboxslack
